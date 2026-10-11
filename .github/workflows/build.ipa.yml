@@ -185,7 +185,26 @@ jobs:
           echo "32-bit PE set: MADEIRA_BUILD_I386=$flag"
         
 
-      
+
+      - name: Diagnose ARM64EC compiler settings
+        shell: bash
+        run: |
+          echo "=== Searching build scripts for invalid compiler settings ==="
+          grep -RInE \
+            --exclude-dir=.git \
+            --exclude-dir=build-ios \
+            -e 'CMAKE_C_COMPILER' \
+            -e 'CMAKE_CXX_COMPILER' \
+            -e 'CMAKE_ASM_COMPILER' \
+            -e '\-clang' \
+            -e 'Building FEX ARM64EC' \
+            tools build wine FEX 2>/dev/null || true
+
+          echo "=== Compiler environment ==="
+          echo "CC=$CC"
+          echo "CXX=$CXX"
+          command -v clang || true
+          command -v clang++ || true
 
 
 
