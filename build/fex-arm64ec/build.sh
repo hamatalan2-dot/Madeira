@@ -29,6 +29,7 @@ cmake -S "$R/FEX" -B "$B" \
     -DCMAKE_BUILD_TYPE=Release \
     -DCMAKE_TOOLCHAIN_FILE="$R/FEX/Data/CMake/toolchain_mingw.cmake" \
     -DMINGW_TRIPLE=aarch64-w64-mingw32 \
+    -DTUNE_CPU=none \
     -DENABLE_FEX_ALLOCATOR=ON \
     -DENABLE_JEMALLOC_GLIBC_ALLOC=ON \
     -DENABLE_OFFLINE_RUNTIME=ON \
