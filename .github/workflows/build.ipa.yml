@@ -37,7 +37,7 @@ jobs:
         run: |
           rm -rf FEX
           git clone https://github.com/willfaust/FEX.git FEX
-          git -C FEX checkout f5808f4c42321f85c71efb4a9d0c2e926384aebe
+          git -C FEX checkout 3bec2ac498bf78156ab47c0c194b0e8cb2849756
           git -C FEX submodule update --init --recursive
 
       - name: Set up Xcode
