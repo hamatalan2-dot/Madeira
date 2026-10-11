@@ -1,5 +1,4 @@
-```bash
-#!/bin/bash
+#!/bin/bash 
 # Configure (first time) and build the FEXCore static libraries the app links
 set -eu
 
@@ -26,5 +25,4 @@ if [ ! -f "$B/CMakeCache.txt" ]; then
 fi
 
 cmake --build "$B" --target FEXCore FEXCore_Base
-ls "$B/FEXCore/Source/"*.a
-```
+ls "$B/FEXCore/Source/"*.a 
