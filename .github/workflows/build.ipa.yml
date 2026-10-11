@@ -82,6 +82,31 @@ jobs:
         with:
           path: toolchains/llvm-mingw-*
           key: ${{ runner.os }}-llvm-mingw-20260421
+          
+      - name: Download and verify llvm-mingw toolchain
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          mkdir -p toolchains
+          ARCHIVE="toolchains/llvm-mingw-20260421-ucrt-macos-universal.tar.xz"
+          DIR="toolchains/llvm-mingw-20260421-ucrt-macos-universal"
+
+          if [ ! -x "$DIR/bin/aarch64-w64-mingw32-clang" ]; then
+            curl -fL --retry 3 \
+              "https://github.com/mstorsjo/llvm-mingw/releases/download/20260421/llvm-mingw-20260421-ucrt-macos-universal.tar.xz" \
+              -o "$ARCHIVE"
+
+            echo "bd85a3975723815cef28dbbd2ca2cb0c926f6b348a12a0453f39f7af273cb3f7  $ARCHIVE" \
+              | shasum -a 256 -c -
+
+            tar -xJf "$ARCHIVE" -C toolchains
+          fi
+
+          ls -la "$DIR/bin"
+          test -x "$DIR/bin/aarch64-w64-mingw32-clang"
+          test -x "$DIR/bin/aarch64-w64-mingw32-clang++"
+
 
       - name: Cache LLVM iOS static libraries
         uses: actions/cache@v4
