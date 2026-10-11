@@ -38,7 +38,9 @@ cmake -S "$R/FEX" -B "$B" \
     -DENABLE_CCACHE=ON \
     -DBUILD_TESTING=OFF \
     -DBUILD_THUNKS=OFF \
+    -DENABLE_LTO=OFF \
     -DENABLE_ASSERTIONS=OFF
+    
 
 cmake --build "$B" --target arm64ecfex
 
