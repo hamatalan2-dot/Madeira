@@ -25,11 +25,20 @@ jobs:
       contents: write
 
     steps:
+
+
       - name: Checkout repository
         uses: actions/checkout@v4
         with:
-          
+
           fetch-depth: 1
+      
+      - name: Restore FEX source and nested submodules
+        run: |
+          rm -rf FEX
+          git clone https://github.com/willfaust/FEX.git FEX
+          git -C FEX checkout f5808f4c42321f85c71efb4a9d0c2e926384aebe
+          git -C FEX submodule update --init --recursive
 
       - name: Set up Xcode
         run: |
