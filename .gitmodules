@@ -14,3 +14,9 @@
 	path = madeira-dock
 	url = https://github.com/willfaust/madeira-dock.git
 	branch = main
+[submodule "Wine"]
+	path = Wine
+	url = https://github.com/willfaust/wine.git
+[submodule "DXMT"]
+	path = DXMT
+	url = https://github.com/willfaust/dxmt.git
