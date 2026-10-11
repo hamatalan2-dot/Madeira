@@ -176,26 +176,7 @@ jobs:
           echo "32-bit PE set: MADEIRA_BUILD_I386=$flag"
         
 
-      - name: Fix FEX iOS processor detection
-        shell: bash
-        run: |
-          python3 - <<'PY'
-          from pathlib import Path
-
-          path = Path("build/fex-ios/build.sh")
-          content = path.read_text()
-
-          old = "-DCMAKE_SYSTEM_NAME=iOS -DCMAKE_OSX_ARCHITECTURES=arm64"
-          new = "-DCMAKE_SYSTEM_NAME=iOS -DCMAKE_SYSTEM_PROCESSOR=arm64 -DCMAKE_OSX_ARCHITECTURES=arm64"
-
-          if old not in content:
-              raise SystemExit(
-                  "ERROR: Expected FEX CMake configuration was not found."
-              )
-
-          path.write_text(content.replace(old, new, 1))
-          print("FEX iOS processor configuration patched successfully.")
-          PY
+      
 
 
 
