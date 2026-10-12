@@ -7,22 +7,6 @@ set -euo pipefail
 
 
 
-from pathlib import Path
-import sys
-
-p = Path(sys.argv[1])
-s = p.read_text()
-
-old = "#ifdef FEX_IOS_HOST\n  MEMORY_BASIC_INFORMATION mbi {};"
-new = "#if defined(_WIN32)\n  MEMORY_BASIC_INFORMATION mbi {};"
-
-if old in s:
-    s = s.replace(old, new, 1)
-elif new not in s:
-    raise SystemExit("ERROR: Windows memory-query guard was not fixed")
-
-p.write_text(s)
-print("Verified: Windows API block is guarded by _WIN32")
 
 
 
@@ -338,46 +322,28 @@ if target in c and '#ifndef IOS_RPM_GUARD' not in c:
 " 2>/dev/null || true
 fi
 
-# 7. Patch Arm64.cpp: Guard Windows-specific MEMORY_BASIC_INFORMATION and VirtualQuery on non-Windows/iOS
+# 7. Patch Arm64.cpp: Windows-only memory query
 ARM64_CPP="$FEX_DIR/FEXCore/Source/Utils/ArchHelpers/Arm64.cpp"
+
 if [ -f "$ARM64_CPP" ]; then
-  python3 -c "
-with open('$ARM64_CPP', 'r') as f:
-    c = f.read()
+  python3 - "$ARM64_CPP" <<'PY'
+from pathlib import Path
+import sys
 
-target = '''  MEMORY_BASIC_INFORMATION mbi {};
-  const char* type = \"?\";
-  if (VirtualQuery(reinterpret_cast<LPCVOID>(GPRs[AddressReg]), &mbi, sizeof(mbi))) {
-    type = mbi.Type == MEM_IMAGE ? \"MEM_IMAGE\" : mbi.Type == MEM_MAPPED ? \"MEM_MAPPED\" : \"MEM_PRIVATE\";
-  }
-  LogMan::Msg::EFmt(\"[caspal128] MISALIGNED-UNSUPPORTED Size={} addrReg=x{} addr={:#x} misalign={} \"
-                    \"crosses16B={} | region base={} size={:#x} prot={:#x} type={} state={:#x}\",
-                    Size, AddressReg, GPRs[AddressReg], GPRs[AddressReg] & 15,
-                    (GPRs[AddressReg] & 15) ? \"yes\" : \"no\", mbi.BaseAddress, mbi.RegionSize,
-                    mbi.Protect, type, mbi.State);'''
+p = Path(sys.argv[1])
+s = p.read_text()
 
-replacement = '''#if defined(_WIN32)
-  MEMORY_BASIC_INFORMATION mbi {};
-  const char* type = \"?\";
-  if (VirtualQuery(reinterpret_cast<LPCVOID>(GPRs[AddressReg]), &mbi, sizeof(mbi))) {
-    type = mbi.Type == MEM_IMAGE ? \"MEM_IMAGE\" : mbi.Type == MEM_MAPPED ? \"MEM_MAPPED\" : \"MEM_PRIVATE\";
-  }
-  LogMan::Msg::EFmt(\"[caspal128] MISALIGNED-UNSUPPORTED Size={} addrReg=x{} addr={:#x} misalign={} \"
-                    \"crosses16B={} | region base={} size={:#x} prot={:#x} type={} state={:#x}\",
-                    Size, AddressReg, GPRs[AddressReg], GPRs[AddressReg] & 15,
-                    (GPRs[AddressReg] & 15) ? \"yes\" : \"no\", mbi.BaseAddress, mbi.RegionSize,
-                    mbi.Protect, type, mbi.State);
-#else
-  LogMan::Msg::EFmt(\"[caspal128] MISALIGNED-UNSUPPORTED Size={} addrReg=x{} addr={:#x} misalign={} crosses16B={}\",
-                    Size, AddressReg, GPRs[AddressReg], GPRs[AddressReg] & 15,
-                    (GPRs[AddressReg] & 15) ? \"yes\" : \"no\");
-#endif'''
+old = "#ifdef FEX_IOS_HOST\n  MEMORY_BASIC_INFORMATION mbi {};"
+new = "#if defined(_WIN32)\n  MEMORY_BASIC_INFORMATION mbi {};"
 
-if target in c:
-    c = c.replace(target, replacement)
-    with open('$ARM64_CPP', 'w') as f:
-        f.write(c)
-" 2>/dev/null || true
+if old in s:
+    s = s.replace(old, new, 1)
+elif new not in s:
+    raise SystemExit("ERROR: Could not fix the Windows API guard in Arm64.cpp")
+
+p.write_text(s)
+print("Verified: Windows API block uses _WIN32")
+PY
 fi
 
 # 8. Patch AllocWatch.cpp: Silence unused EventName warning
