@@ -22,27 +22,31 @@ test -x "$CXX" || {
     exit 1
 }
 
-# Remove the old CMake cache so the corrected compiler settings take effect.
+# Remove the old build directory.
 rm -rf "$B"
 
-cmake -S "$R/FEX" -B "$B" \
+# Configure FEX for ARM64EC.
+cmake -G Ninja -S "$R/FEX" -B "$B" \
     -DCMAKE_BUILD_TYPE=Release \
     -DCMAKE_TOOLCHAIN_FILE="$R/FEX/Data/CMake/toolchain_mingw.cmake" \
-    -DMINGW_TRIPLE=aarch64-w64-mingw32 \
+    -DMINGW_TRIPLE=arm64ec-w64-mingw32 \
     -DTUNE_CPU=none \
+    -DENABLE_LTO=OFF \
     -DENABLE_FEX_ALLOCATOR=ON \
-    -DENABLE_JEMALLOC_GLIBC_ALLOC=ON \
+    -DENABLE_JEMALLOC_GLIBC_ALLOC=OFF \
     -DENABLE_OFFLINE_RUNTIME=ON \
     -DBUILD_FEXCONFIG=ON \
     -DENABLE_CLANG_THUNKS=ON \
     -DENABLE_CCACHE=ON \
     -DBUILD_TESTING=OFF \
     -DBUILD_THUNKS=OFF \
-    -DENABLE_LTO=OFF \
     -DENABLE_ASSERTIONS=OFF
-    
 
-cmake --build "$B" --target arm64ecfex
+# Build the default target instead of the nonexistent arm64ecfex target.
+cmake --build "$B" --parallel 2
+
+# Inspect the produced DLL before copying it.
+find "$B" -type f -name '*.dll' -print
 
 mkdir -p "$R/app/Madeira/arm64ec-windows"
 
