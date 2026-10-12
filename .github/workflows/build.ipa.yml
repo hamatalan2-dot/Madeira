@@ -128,6 +128,26 @@ jobs:
             toolchains/llvm-ios-build
           key: ${{ runner.os }}-llvm-ios-15.0.7-v2
 
+
+
+
+      - name: Diagnose IosJitReverseTranslate
+        shell: bash
+        run: |
+          echo "=== FEX revision ==="
+          git -C FEX rev-parse HEAD
+
+          echo "=== All references to IosJitReverseTranslate ==="
+          git -C FEX grep -n "IosJitReverseTranslate" || true
+
+          echo "=== Related iOS JIT symbols ==="
+          git -C FEX grep -n -E "JitReverseTranslate|ReverseTranslate|IosJit" || true
+
+          echo "=== ARM64EC Module.cpp context ==="
+          sed -n '640,700p' FEX/Source/Windows/ARM64EC/Module.cpp
+
+
+
       - name: Cache FEX build
         uses: actions/cache@v4
         with:
