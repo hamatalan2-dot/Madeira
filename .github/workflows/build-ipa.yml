@@ -23,7 +23,7 @@ jobs:
     timeout-minutes: 360
     permissions:
       contents: write
-
+      
     steps:
       - name: Checkout repository and submodules
         uses: actions/checkout@v4
@@ -89,10 +89,7 @@ jobs:
           key: ${{ runner.os }}-fex-ios-cxx20-v8-${{ hashFiles('FEX/**', 'tools/build/build-fex-ios.sh', 'tools/patch_fex_atomic_ref.sh') }}
           restore-keys: |
             ${{ runner.os }}-fex-ios-cxx20-v8-
-
-      - name: Clean FEX build tree
-        run: rm -rf FEX/build-ios
-
+            
       - name: Cache FFmpeg iOS build
         uses: actions/cache@v4
         with:
@@ -113,25 +110,17 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-freetype-ios-v1-
 
+      
       - name: Cache Wine host build
         uses: actions/cache@v4
         with:
           path: |
             wine/build-macos
             wine/build-arm64ec
-          key: ${{ runner.os }}-wine-host-v5-${{ hashFiles('wine/**', 'tools/build-ipa.sh', 'tools/build/build-wine.sh') }}
+          key: ${{ runner.os }}-wine-host-v6-${{ hashFiles('wine/**', 'tools/build-ipa.sh', 'tools/build/build-wine.sh') }}
           restore-keys: |
-            ${{ runner.os }}-wine-host-v5-
+            ${{ runner.os }}-wine-host-v6-
 
-      - name: Clean Wine build trees
-        run: |
-          rm -rf wine/build-macos wine/build-arm64ec wine/build-i386 build/wineserver/obj
-
-      - name: Clean DXMT iOS build tree and VC runtime cache
-        run: |
-          rm -rf build/dxmt-ios/obj app/Madeira/libdxmt_combined.a
-          rm -f toolchains/downloads/vc_redist*
-          rm -rf toolchains/downloads/vc_redist* app/Madeira/x86_64-vcruntime
 
       - name: Configure Apple compiler environment
         run: |
@@ -194,7 +183,7 @@ jobs:
           }
           du -sh app/Madeira/i386-windows
 
-      - name: Print failed DXMT compiler logs
+      - name: Print failed dxmt compiler logs
         if: failure()
         shell: bash
         run: |
@@ -204,7 +193,7 @@ jobs:
               cat "$1"
             ' sh {} \;
           else
-            echo "No DXMT compiler log directory exists."
+            echo "No dxmt compiler log directory exists."
           fi
 
       - name: Print failed ntdll-unix compiler logs
