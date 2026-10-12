@@ -10,7 +10,7 @@ on:
       build_i386:
         description: 'Build the optional 32-bit (i386/WoW64) PE set'
         type: boolean
-        default: true
+        default: false
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -23,7 +23,7 @@ jobs:
     timeout-minutes: 360
     permissions:
       contents: write
-      
+
     steps:
       - name: Checkout repository and submodules
         uses: actions/checkout@v4
