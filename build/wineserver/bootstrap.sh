@@ -53,8 +53,18 @@ pattern = (
     r'\s*#endif\s*'
 )
 
-body = re.sub(pattern, '\n', body)
-s = s[:m.end()] + body.rstrip() + fields + s[end:]
+body = re.sub(
+    r'^[ \t]*unsigned long long[ \t]+ios_ctx_frame;[ \t]*\n',
+    '',
+    body,
+    flags=re.M
+)
+body = re.sub(
+    r'^[ \t]*unsigned int[ \t]+ios_ctx_seq;[ \t]*\n',
+    '',
+    body,
+    flags=re.M
+)
 
 p.write_text(s)
 print("Patched struct thread successfully")
