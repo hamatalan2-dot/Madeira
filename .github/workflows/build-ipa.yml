@@ -42,7 +42,7 @@ jobs:
           echo "DEVELOPER_DIR=$developer_dir" >> "$GITHUB_ENV"
           xcodebuild -version
           xcrun --sdk iphoneos --show-sdk-path
-          
+
       - name: Install build tools via Homebrew
         run: |
           brew install cmake ninja meson pkg-config autoconf automake libtool bison flex sevenzip llvm
@@ -89,6 +89,7 @@ jobs:
           key: ${{ runner.os }}-fex-ios-cxx20-v8-${{ hashFiles('FEX/**', 'tools/build/build-fex-ios.sh', 'tools/patch_fex_atomic_ref.sh') }}
           restore-keys: |
             ${{ runner.os }}-fex-ios-cxx20-v8-
+
       - name: Clean FEX build tree
         run: rm -rf FEX/build-ios
 
@@ -125,6 +126,7 @@ jobs:
       - name: Clean Wine build trees
         run: |
           rm -rf wine/build-macos wine/build-arm64ec wine/build-i386 build/wineserver/obj
+
       - name: Clean DXMT iOS build tree and VC runtime cache
         run: |
           rm -rf build/dxmt-ios/obj app/Madeira/libdxmt_combined.a
@@ -156,6 +158,7 @@ jobs:
       - name: Fix script permissions
         run: |
           find tools build -type f -name '*.sh' -exec chmod +x {} +
+
       - name: Set up Rust (on-device pairing library)
         uses: dtolnay/rust-toolchain@stable
         with:
@@ -229,7 +232,6 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           tag_name: latest
-
           name: "Madeira Latest"
           body: |
             Automated latest build for Madeira.
