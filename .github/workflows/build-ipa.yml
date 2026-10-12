@@ -153,17 +153,20 @@ jobs:
         with:
           targets: aarch64-apple-ios
 
-      - name: Resolve the 32-bit (i386) build flag
+
+
+
+      - name: Disable 32-bit (i386) build
         id: i386
         run: |
-          flag=1
-          if [ "${{ github.event_name }}" = "workflow_dispatch" ] && [ "${{ inputs.build_i386 }}" = "false" ]; then
-            flag=0
-          fi
-          echo "value=$flag" >> "$GITHUB_OUTPUT"
-          echo "MADEIRA_BUILD_I386=$flag" >> "$GITHUB_ENV"
-          echo "32-bit PE set: MADEIRA_BUILD_I386=$flag"
+          echo "value=0" >> "$GITHUB_OUTPUT"
+          echo "MADEIRA_BUILD_I386=0" >> "$GITHUB_ENV"
+          echo "32-bit PE set disabled: MADEIRA_BUILD_I386=0"
 
+
+
+          
+ 
       - name: Run build-ipa.sh
         run: |
           ./tools/build-ipa.sh
