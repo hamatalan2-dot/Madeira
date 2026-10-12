@@ -9,32 +9,60 @@ REPO_ROOT="$(cd "$BUILD_DIR/../.." && pwd)"
 WINE_SRC="$REPO_ROOT/wine"
 
 
-python3 - "$WINE_SRC/server/thread.h" <<'PY'
 from pathlib import Path
+import re
 import sys
 
 p = Path(sys.argv[1])
 s = p.read_text()
 
-if "ios_ctx_frame" not in s:
-    start = s.find("struct thread")
-    end = s.find("\n};", start)
+# Match the actual struct definition, not a forward declaration
+# or a different name such as struct thread_info.
+m = re.search(r'\bstruct\s+thread\s*\{', s)
 
-    if start < 0 or end < 0:
-        raise SystemExit("ERROR: Could not find struct thread in thread.h")
+if not m:
+    raise SystemExit("ERROR: Actual struct thread definition not found")
 
-    fields = """
+# Find the closing brace for this struct.
+pos = m.end()
+depth = 1
+
+while pos < len(s) and depth:
+    if s[pos] == '{':
+        depth += 1
+    elif s[pos] == '}':
+        depth -= 1
+    pos += 1
+
+if depth:
+    raise SystemExit("ERROR: Could not find end of struct thread")
+
+end = pos - 1
+body = s[m.end():end]
+
+fields = """
 #ifdef WINE_IOS
     unsigned long long ios_ctx_frame;
     unsigned int ios_ctx_seq;
 #endif
 """
-    s = s[:end] + fields + s[end:]
-    p.write_text(s)
-    print("Added missing iOS context fields to struct thread")
-else:
-    print("iOS context fields already exist")
-PY
+
+# Avoid duplicate fields; place them at the end of the real struct.
+body = re.sub(
+    r'\s*#ifdef WINE_IOS\s*\n'
+    r'\s*unsigned long long ios_ctx_frame;\s*\n'
+    r'\s*unsigned int ios_ctx_seq;\s*\n'
+    r'\s*#endif\s*',
+    '\n',
+    body
+)
+
+s = s[:m.end()] + body.rstrip() + fields + s[end:]
+p.write_text(s)
+
+print("Patched the actual struct thread definition")
+
+
 
 
 SDK="$(xcrun --sdk iphoneos --show-sdk-path)"
