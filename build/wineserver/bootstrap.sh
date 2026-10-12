@@ -8,7 +8,10 @@ BUILD_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "$BUILD_DIR/../.." && pwd)"
 WINE_SRC="$REPO_ROOT/wine"
 
+THREAD_H="$WINE_SRC/server/thread.h"
 
+if [[ -f "$THREAD_H" ]]; then
+  python3 - "$THREAD_H" <<'PY'
 from pathlib import Path
 import re
 import sys
@@ -16,14 +19,10 @@ import sys
 p = Path(sys.argv[1])
 s = p.read_text()
 
-# Match the actual struct definition, not a forward declaration
-# or a different name such as struct thread_info.
 m = re.search(r'\bstruct\s+thread\s*\{', s)
-
 if not m:
     raise SystemExit("ERROR: Actual struct thread definition not found")
 
-# Find the closing brace for this struct.
 pos = m.end()
 depth = 1
 
@@ -47,20 +46,24 @@ fields = """
 #endif
 """
 
-# Avoid duplicate fields; place them at the end of the real struct.
-body = re.sub(
+pattern = (
     r'\s*#ifdef WINE_IOS\s*\n'
     r'\s*unsigned long long ios_ctx_frame;\s*\n'
     r'\s*unsigned int ios_ctx_seq;\s*\n'
-    r'\s*#endif\s*',
-    '\n',
-    body
+    r'\s*#endif\s*'
 )
 
+body = re.sub(pattern, '\n', body)
 s = s[:m.end()] + body.rstrip() + fields + s[end:]
-p.write_text(s)
 
-print("Patched the actual struct thread definition")
+p.write_text(s)
+print("Patched struct thread successfully")
+PY
+else
+  echo "ERROR: Missing $THREAD_H" >&2
+  exit 1
+fi
+
 
 
 
