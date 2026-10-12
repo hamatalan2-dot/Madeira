@@ -7,6 +7,36 @@ set -euo pipefail
 BUILD_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "$BUILD_DIR/../.." && pwd)"
 WINE_SRC="$REPO_ROOT/wine"
+
+
+python3 - "$WINE_SRC/server/thread.h" <<'PY'
+from pathlib import Path
+import sys
+
+p = Path(sys.argv[1])
+s = p.read_text()
+
+if "ios_ctx_frame" not in s:
+    start = s.find("struct thread")
+    end = s.find("\n};", start)
+
+    if start < 0 or end < 0:
+        raise SystemExit("ERROR: Could not find struct thread in thread.h")
+
+    fields = """
+#ifdef WINE_IOS
+    unsigned long long ios_ctx_frame;
+    unsigned int ios_ctx_seq;
+#endif
+"""
+    s = s[:end] + fields + s[end:]
+    p.write_text(s)
+    print("Added missing iOS context fields to struct thread")
+else:
+    print("iOS context fields already exist")
+PY
+
+
 SDK="$(xcrun --sdk iphoneos --show-sdk-path)"
 OBJ_DIR="$BUILD_DIR/obj"
 BASE_DIR="$OBJ_DIR/base"
