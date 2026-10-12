@@ -3,11 +3,11 @@
 	url = https://github.com/willfaust/FEX.git
 	branch = ios-port-2607
 [submodule "Wine"]
-	path = Wine
+	path = wine
 	url = https://github.com/willfaust/wine.git
 	branch = madeira-lgpl
 [submodule "DXMT"]
-	path = DXMT
+	path = dxmt
 	url = https://github.com/willfaust/dxmt.git
 	branch = ios-port
 [submodule "madeira-dock"]
