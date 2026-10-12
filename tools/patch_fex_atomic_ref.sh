@@ -5,6 +5,28 @@
 # 3. Guard host-specific code on Apple platforms
 set -euo pipefail
 
+
+
+from pathlib import Path
+import sys
+
+p = Path(sys.argv[1])
+s = p.read_text()
+
+old = "#ifdef FEX_IOS_HOST\n  MEMORY_BASIC_INFORMATION mbi {};"
+new = "#if defined(_WIN32)\n  MEMORY_BASIC_INFORMATION mbi {};"
+
+if old in s:
+    s = s.replace(old, new, 1)
+elif new not in s:
+    raise SystemExit("ERROR: Windows memory-query guard was not fixed")
+
+p.write_text(s)
+print("Verified: Windows API block is guarded by _WIN32")
+
+
+
+
 FEX_DIR="${1:-$(cd "$(dirname "${BASH_SOURCE[0]}")/../FEX" && pwd)}"
 
 if [ ! -d "$FEX_DIR" ]; then
