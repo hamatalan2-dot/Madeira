@@ -3010,7 +3010,7 @@ struct LibraryDetail: View {
             }
             .onDisappear { if !leaving { model.save(entry) } }
             .onReceive(LibraryController.shared.commands) { command in
-                guard !leaving, !findCover, !importCover, !remove else { return }
+                guard !leaving, !importCover, !remove else { return }
                 if command == "back" { model.save(entry); dismiss() }
                 if command == "accept" { start() }
             }
