@@ -121,7 +121,7 @@ enum OnboardingRules {
     @Published private(set) var since = 0
     var steps: [Step] { steps(since: since) }
     private func steps(since: Int) -> [Step] {
-        OnboardingRules.steps(signIn: SteamSignIn.isEnabled, dock: MadeiraDock.enabled, localDevVPN: offerLocalDevVPN,
+        OnboardingRules.steps(signIn: false, dock: false, localDevVPN: offerLocalDevVPN,
                               wineMono: offerWineMono, since: since)
     }
     /// Setup can be opened: enabled, and something to set up.
@@ -683,7 +683,7 @@ struct SteamSettingsSection: View {
     @State private var confirmSignOut = false
 
     /// Shown when Steam sign-in or Madeira Dock is available.
-    static var shown: Bool { SteamSignIn.isEnabled || MadeiraDock.enabled }
+    static var shown: Bool { false }
 
     var body: some View {
         Section {

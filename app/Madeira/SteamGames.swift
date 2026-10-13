@@ -449,13 +449,7 @@ struct SteamGamesSection: View {
         return !groups.installed.isEmpty || !groups.downloading.isEmpty
     }
 
-    @MainActor static var shown: Bool {
-        let library = SteamOwnedLibrary.enabled, account = SteamOwnedLibrary.shared
-        let owned = library ? account.owned : []
-        let total = SteamGamesRules.items(installed: SteamGamesModel.shared.games, owned: owned, search: "").count
-        return SteamGamesRules.showsSection(dock: MadeiraDock.enabled, library: library,
-                                            signedIn: library && account.signedIn, count: total)
-    }
+    @MainActor static var shown: Bool { false }
 
     /// Pull to refresh on the library: the install records again and, when
     /// signed in, the account's library.

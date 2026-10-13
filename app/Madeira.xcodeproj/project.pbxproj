@@ -23,7 +23,6 @@
 		A1000700 /* SteamCloud.swift in Sources */ = {isa = PBXBuildFile; fileRef = A2000700 /* SteamCloud.swift */; };
 		A1000710 /* SavesAndShortcuts.swift in Sources */ = {isa = PBXBuildFile; fileRef = A2000710 /* SavesAndShortcuts.swift */; };
 		A1000711 /* WineMono.swift in Sources */ = {isa = PBXBuildFile; fileRef = A2000711 /* WineMono.swift */; };
-		A1000712 /* UbisoftConnect.swift in Sources */ = {isa = PBXBuildFile; fileRef = A2000712 /* UbisoftConnect.swift */; };
 		A1000602 /* SteamDownloadBackground.swift in Sources */ = {isa = PBXBuildFile; fileRef = A2000602 /* SteamDownloadBackground.swift */; };
 		A1000600 /* SteamInstall.swift in Sources */ = {isa = PBXBuildFile; fileRef = A2000600 /* SteamInstall.swift */; };
 		A1000609 /* SwiftSteam/Content/ContentDecryptor.swift in Sources */ = {isa = PBXBuildFile; fileRef = A2000609 /* ContentDecryptor.swift */; };
@@ -47,13 +46,6 @@
 		A1000524 /* DockInstallers.swift in Sources */ = {isa = PBXBuildFile; fileRef = A2000524 /* DockInstallers.swift */; };
 		A1000510 /* SwiftSteam/SteamSignIn.swift in Sources */ = {isa = PBXBuildFile; fileRef = A2000510 /* SteamSignIn.swift */; };
 		A1000511 /* SwiftSteam/SteamSignInView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A2000511 /* SteamSignInView.swift */; };
-		A1000920 /* Epic/EpicAuth.swift in Sources */ = {isa = PBXBuildFile; fileRef = A2000920 /* EpicAuth.swift */; };
-		A1000921 /* Epic/EpicAPI.swift in Sources */ = {isa = PBXBuildFile; fileRef = A2000921 /* EpicAPI.swift */; };
-		A1000922 /* Epic/EpicSignInView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A2000922 /* EpicSignInView.swift */; };
-		A1000923 /* Epic/EpicManifest.swift in Sources */ = {isa = PBXBuildFile; fileRef = A2000923 /* EpicManifest */; };
-		A1000924 /* Epic/EpicChunk.swift in Sources */ = {isa = PBXBuildFile; fileRef = A2000924 /* EpicChunk */; };
-		A1000925 /* Epic/EpicInstall.swift in Sources */ = {isa = PBXBuildFile; fileRef = A2000925 /* EpicInstall */; };
-		A1000926 /* Epic/EpicInstallModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = A2000926 /* EpicInstallModel */; };
 		A1000512 /* SwiftSteam/Auth/SteamAuthAPI.swift in Sources */ = {isa = PBXBuildFile; fileRef = A2000512 /* SteamAuthAPI.swift */; };
 		A1000513 /* SwiftSteam/Auth/SteamCredentialAuth.swift in Sources */ = {isa = PBXBuildFile; fileRef = A2000513 /* SteamCredentialAuth.swift */; };
 		A1000514 /* SwiftSteam/Auth/SteamQRAuth.swift in Sources */ = {isa = PBXBuildFile; fileRef = A2000514 /* SteamQRAuth.swift */; };
@@ -95,10 +87,6 @@
 		B1000004 /* madeira-jit.js in Resources */ = {isa = PBXBuildFile; fileRef = B2000004 /* madeira-jit.js */; };
 		B1000051 /* Madeira JIT.shortcut in Resources */ = {isa = PBXBuildFile; fileRef = B2000051 /* Madeira JIT.shortcut */; };
 		B1000005 /* ExtensionFoundation.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = B2000010 /* ExtensionFoundation.framework */; settings = {ATTRIBUTES = (Weak, ); }; };
-		B1000010 /* MadeiraJITHelper.swift in Sources */ = {isa = PBXBuildFile; fileRef = B2000020 /* MadeiraJITHelper.swift */; };
-		B1000011 /* JITBuiltInMessages.swift in Helper Sources */ = {isa = PBXBuildFile; fileRef = B2000003 /* JITBuiltInMessages.swift */; };
-		B1000014 /* ExtensionFoundation.framework in Helper Frameworks */ = {isa = PBXBuildFile; fileRef = B2000010 /* ExtensionFoundation.framework */; };
-		B1000016 /* MadeiraJITHelper.appex in Embed JIT Helper */ = {isa = PBXBuildFile; fileRef = B2000022 /* MadeiraJITHelper.appex */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
 		A1000040 /* prefix-template.tar.gz in Resources */ = {isa = PBXBuildFile; fileRef = A2000040 /* prefix-template.tar.gz */; };
 		A1000041 /* PrefixExtractor.c in Sources */ = {isa = PBXBuildFile; fileRef = A2000041 /* PrefixExtractor.c */; };
 		A1000042 /* libz.tbd in Frameworks */ = {isa = PBXBuildFile; fileRef = A2000042 /* libz.tbd */; };
@@ -147,37 +135,9 @@
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
-		B3000001 /* PBXContainerItemProxy */ = {
-			isa = PBXContainerItemProxy;
-			containerPortal = A6000001 /* Project object */;
-			proxyType = 1;
-			remoteGlobalIDString = B5000001;
-			remoteInfo = MadeiraJITHelper;
-		};
 /* End PBXContainerItemProxy section */
 
 /* Begin PBXCopyFilesBuildPhase section */
-		B3000002 /* Embed Frameworks */ = {
-			isa = PBXCopyFilesBuildPhase;
-			buildActionMask = 2147483647;
-			dstPath = "";
-			dstSubfolderSpec = 10;
-			files = (
-			);
-			name = "Embed Frameworks";
-			runOnlyForDeploymentPostprocessing = 0;
-		};
-		B3000003 /* Embed JIT Helper */ = {
-			isa = PBXCopyFilesBuildPhase;
-			buildActionMask = 2147483647;
-			dstPath = "";
-			dstSubfolderSpec = 13;
-			files = (
-				B1000016 /* MadeiraJITHelper.appex in Embed JIT Helper */,
-			);
-			name = "Embed JIT Helper";
-			runOnlyForDeploymentPostprocessing = 0;
-		};
 /* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
@@ -197,7 +157,6 @@
 		A2000700 /* SteamCloud.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "SteamCloud.swift"; sourceTree = "<group>"; };
 		A2000710 /* SavesAndShortcuts.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "SavesAndShortcuts.swift"; sourceTree = "<group>"; };
 		A2000711 /* WineMono.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "WineMono.swift"; sourceTree = "<group>"; };
-		A2000712 /* UbisoftConnect.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "UbisoftConnect.swift"; sourceTree = "<group>"; };
 		A2000602 /* SteamDownloadBackground.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "SteamDownloadBackground.swift"; sourceTree = "<group>"; };
 		A2000600 /* SteamInstall.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "SteamInstall.swift"; sourceTree = "<group>"; };
 		A2000609 /* ContentDecryptor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "SwiftSteam/Content/ContentDecryptor.swift"; sourceTree = "<group>"; };
@@ -224,13 +183,6 @@
 		A2000524 /* DockInstallers.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "DockInstallers.swift"; sourceTree = "<group>"; };
 		A2000510 /* SteamSignIn.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "SwiftSteam/SteamSignIn.swift"; sourceTree = "<group>"; };
 		A2000511 /* SteamSignInView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "SwiftSteam/SteamSignInView.swift"; sourceTree = "<group>"; };
-		A2000920 /* EpicAuth.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Epic/EpicAuth.swift"; sourceTree = "<group>"; };
-		A2000921 /* EpicAPI.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Epic/EpicAPI.swift"; sourceTree = "<group>"; };
-		A2000922 /* EpicSignInView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Epic/EpicSignInView.swift"; sourceTree = "<group>"; };
-		A2000923 /* EpicManifest */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Epic/EpicManifest.swift"; sourceTree = "<group>"; };
-		A2000924 /* EpicChunk */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Epic/EpicChunk.swift"; sourceTree = "<group>"; };
-		A2000925 /* EpicInstall */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Epic/EpicInstall.swift"; sourceTree = "<group>"; };
-		A2000926 /* EpicInstallModel */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Epic/EpicInstallModel.swift"; sourceTree = "<group>"; };
 		A2000512 /* SteamAuthAPI.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "SwiftSteam/Auth/SteamAuthAPI.swift"; sourceTree = "<group>"; };
 		A2000513 /* SteamCredentialAuth.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "SwiftSteam/Auth/SteamCredentialAuth.swift"; sourceTree = "<group>"; };
 		A2000514 /* SteamQRAuth.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "SwiftSteam/Auth/SteamQRAuth.swift"; sourceTree = "<group>"; };
@@ -281,9 +233,6 @@
 		B2000004 /* madeira-jit.js */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.javascript; path = "madeira-jit.js"; sourceTree = "<group>"; };
 		B2000051 /* Madeira JIT.shortcut */ = {isa = PBXFileReference; lastKnownFileType = file; path = "Madeira JIT.shortcut"; sourceTree = "<group>"; };
 		B2000010 /* ExtensionFoundation.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = ExtensionFoundation.framework; path = System/Library/Frameworks/ExtensionFoundation.framework; sourceTree = SDKROOT; };
-		B2000020 /* MadeiraJITHelper.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MadeiraJITHelper.swift; sourceTree = "<group>"; };
-		B2000021 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
-		B2000022 /* MadeiraJITHelper.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = MadeiraJITHelper.appex; sourceTree = BUILT_PRODUCTS_DIR; };
 		B2000030 /* StikJIT.xcframework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.xcframework; path = Frameworks/StikJIT.xcframework; sourceTree = SOURCE_ROOT; };
 		A2000040 /* prefix-template.tar.gz */ = {isa = PBXFileReference; lastKnownFileType = archive.gzip; path = "prefix-template.tar.gz"; sourceTree = "<group>"; };
 		A2000041 /* PrefixExtractor.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = PrefixExtractor.c; sourceTree = "<group>"; };
@@ -378,14 +327,6 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
-		B3000004 /* Frameworks */ = {
-			isa = PBXFrameworksBuildPhase;
-			buildActionMask = 2147483647;
-			files = (
-				B1000014 /* ExtensionFoundation.framework in Helper Frameworks */,
-			);
-			runOnlyForDeploymentPostprocessing = 0;
-		};
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
@@ -393,7 +334,6 @@
 			isa = PBXGroup;
 			children = (
 				A4000002 /* Madeira */,
-				B4000001 /* MadeiraJITHelper */,
 				A4000004 /* Libraries */,
 				A4000003 /* Products */,
 			);
@@ -418,7 +358,6 @@
 				A2000700 /* SteamCloud.swift */,
 				A2000710 /* SavesAndShortcuts.swift */,
 				A2000711 /* WineMono.swift */,
-				A2000712 /* UbisoftConnect.swift */,
 				A2000602 /* SteamDownloadBackground.swift */,
 				A2000600 /* SteamInstall.swift */,
 				A2000609 /* ContentDecryptor.swift */,
@@ -445,13 +384,6 @@
 				A2000524 /* DockInstallers.swift */,
 				A2000510 /* SteamSignIn.swift */,
 				A2000511 /* SteamSignInView.swift */,
-				A2000920 /* EpicAuth.swift */,
-				A2000921 /* EpicAPI.swift */,
-				A2000922 /* EpicSignInView.swift */,
-				A2000923 /* EpicManifest */,
-				A2000924 /* EpicChunk */,
-				A2000925 /* EpicInstall */,
-				A2000926 /* EpicInstallModel */,
 				A2000512 /* SteamAuthAPI.swift */,
 				A2000513 /* SteamCredentialAuth.swift */,
 				A2000514 /* SteamQRAuth.swift */,
@@ -524,7 +456,6 @@
 			isa = PBXGroup;
 			children = (
 				A2000009 /* Madeira.app */,
-				B2000022 /* MadeiraJITHelper.appex */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -571,15 +502,6 @@
 			name = Libraries;
 			sourceTree = "<group>";
 		};
-		B4000001 /* MadeiraJITHelper */ = {
-			isa = PBXGroup;
-			children = (
-				B2000020 /* MadeiraJITHelper.swift */,
-				B2000021 /* Info.plist */,
-			);
-			path = MadeiraJITHelper;
-			sourceTree = "<group>";
-		};
 /* End PBXGroup section */
 
 /* Begin PBXNativeTarget section */
@@ -591,36 +513,17 @@
 				A3000001 /* Frameworks */,
 				A3000003 /* Resources */,
 				A30000E2 /* Bundle Wine Mono */,
-				B3000003 /* Embed JIT Helper */,
 				B3000007 /* Embed StikJIT */,
 				A30000D1 /* Sign bundled dylibs */,
 			);
 			buildRules = (
 			);
 			dependencies = (
-				B3000006 /* PBXTargetDependency */,
 			);
 			name = Madeira;
 			productName = Madeira;
 			productReference = A2000009 /* Madeira.app */;
 			productType = "com.apple.product-type.application";
-		};
-		B5000001 /* MadeiraJITHelper */ = {
-			isa = PBXNativeTarget;
-			buildConfigurationList = B7000001 /* Build configuration list for PBXNativeTarget "MadeiraJITHelper" */;
-			buildPhases = (
-				B3000005 /* Sources */,
-				B3000004 /* Frameworks */,
-				B3000002 /* Embed Frameworks */,
-			);
-			buildRules = (
-			);
-			dependencies = (
-			);
-			name = MadeiraJITHelper;
-			productName = MadeiraJITHelper;
-			productReference = B2000022 /* MadeiraJITHelper.appex */;
-			productType = "com.apple.product-type.app-extension";
 		};
 /* End PBXNativeTarget section */
 
@@ -634,11 +537,6 @@
 				TargetAttributes = {
 					A5000001 = {
 						CreatedOnToolsVersion = 16.0;
-					};
-					B5000001 = {
-						CreatedOnToolsVersion = 27.0;
-						DevelopmentTeam = V8NU3FX3TL;
-						ProvisioningStyle = Automatic;
 					};
 				};
 			};
@@ -656,7 +554,6 @@
 			projectRoot = "";
 			targets = (
 				A5000001 /* Madeira */,
-				B5000001 /* MadeiraJITHelper */,
 			);
 		};
 /* End PBXProject section */
@@ -728,7 +625,7 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 			shellPath = /bin/sh;
-			shellScript = "set -e\n[ \"$PLATFORM_NAME\" = iphoneos ] || exit 0\n# Madeira.app/Frameworks, which the JIT helper (PlugIns/MadeiraJITHelper.appex) loads\n# through @executable_path/../../Frameworks: sideloaders re-sign the app's own\n# Frameworks folder, and left an ad-hoc framework inside the helper unsigned.\nSRC=\"$SRCROOT/Frameworks/StikJIT.xcframework/ios-arm64/StikJIT.framework\"\nDST=\"$TARGET_BUILD_DIR/$FRAMEWORKS_FOLDER_PATH/StikJIT.framework\"\nrm -rf \"$DST\"\nmkdir -p \"$(dirname \"$DST\")\"\nditto \"$SRC\" \"$DST\"\n# The framework ships without an Info.plist, which an app's embedded framework needs.\nif [ ! -f \"$DST/Info.plist\" ]; then\n  P=\"$DST/Info.plist\"\n  /usr/libexec/PlistBuddy -c 'Add :CFBundleExecutable string StikJIT' -c \"Add :CFBundleIdentifier string $PRODUCT_BUNDLE_IDENTIFIER.StikJIT\" -c 'Add :CFBundleName string StikJIT' -c 'Add :CFBundlePackageType string FMWK' -c 'Add :CFBundleInfoDictionaryVersion string 6.0' -c 'Add :CFBundleShortVersionString string 1.0' -c 'Add :CFBundleVersion string 1' -c 'Add :CFBundleSupportedPlatforms array' -c 'Add :CFBundleSupportedPlatforms:0 string iPhoneOS' -c 'Add :MinimumOSVersion string 26.0' \"$P\" >/dev/null\n  plutil -convert binary1 \"$P\"\nfi\nif [ -n \"$EXPANDED_CODE_SIGN_IDENTITY\" ] && [ \"$CODE_SIGNING_ALLOWED\" != \"NO\" ]; then\n  codesign --force --sign \"$EXPANDED_CODE_SIGN_IDENTITY\" --timestamp=none \"$DST\"\nfi\n";
+			shellScript = "set -e\n[ \"$PLATFORM_NAME\" = iphoneos ] || exit 0\n# Madeira.app/Frameworks, which the app loads\n# through @executable_path/../../Frameworks: sideloaders re-sign the app's own\n# Frameworks folder, and left an ad-hoc framework inside the helper unsigned.\nSRC=\"$SRCROOT/Frameworks/StikJIT.xcframework/ios-arm64/StikJIT.framework\"\nDST=\"$TARGET_BUILD_DIR/$FRAMEWORKS_FOLDER_PATH/StikJIT.framework\"\nrm -rf \"$DST\"\nmkdir -p \"$(dirname \"$DST\")\"\nditto \"$SRC\" \"$DST\"\n# The framework ships without an Info.plist, which an app's embedded framework needs.\nif [ ! -f \"$DST/Info.plist\" ]; then\n  P=\"$DST/Info.plist\"\n  /usr/libexec/PlistBuddy -c 'Add :CFBundleExecutable string StikJIT' -c \"Add :CFBundleIdentifier string $PRODUCT_BUNDLE_IDENTIFIER.StikJIT\" -c 'Add :CFBundleName string StikJIT' -c 'Add :CFBundlePackageType string FMWK' -c 'Add :CFBundleInfoDictionaryVersion string 6.0' -c 'Add :CFBundleShortVersionString string 1.0' -c 'Add :CFBundleVersion string 1' -c 'Add :CFBundleSupportedPlatforms array' -c 'Add :CFBundleSupportedPlatforms:0 string iPhoneOS' -c 'Add :MinimumOSVersion string 26.0' \"$P\" >/dev/null\n  plutil -convert binary1 \"$P\"\nfi\nif [ -n \"$EXPANDED_CODE_SIGN_IDENTITY\" ] && [ \"$CODE_SIGNING_ALLOWED\" != \"NO\" ]; then\n  codesign --force --sign \"$EXPANDED_CODE_SIGN_IDENTITY\" --timestamp=none \"$DST\"\nfi\n";
 		};
 /* End PBXShellScriptBuildPhase section */
 
@@ -752,7 +649,6 @@
 				A1000700 /* SteamCloud.swift in Sources */,
 				A1000710 /* SavesAndShortcuts.swift in Sources */,
 				A1000711 /* WineMono.swift in Sources */,
-				A1000712 /* UbisoftConnect.swift in Sources */,
 				A1000602 /* SteamDownloadBackground.swift in Sources */,
 				A1000600 /* SteamInstall.swift in Sources */,
 				A1000609 /* SwiftSteam/Content/ContentDecryptor.swift in Sources */,
@@ -776,13 +672,6 @@
 				A1000524 /* DockInstallers.swift in Sources */,
 				A1000510 /* SwiftSteam/SteamSignIn.swift in Sources */,
 				A1000511 /* SwiftSteam/SteamSignInView.swift in Sources */,
-				A1000920 /* Epic/EpicAuth.swift in Sources */,
-				A1000921 /* Epic/EpicAPI.swift in Sources */,
-				A1000922 /* Epic/EpicSignInView.swift in Sources */,
-				A1000923 /* Epic/EpicManifest.swift in Sources */,
-				A1000924 /* Epic/EpicChunk.swift in Sources */,
-				A1000925 /* Epic/EpicInstall.swift in Sources */,
-				A1000926 /* Epic/EpicInstallModel.swift in Sources */,
 				A1000512 /* SwiftSteam/Auth/SteamAuthAPI.swift in Sources */,
 				A1000513 /* SwiftSteam/Auth/SteamCredentialAuth.swift in Sources */,
 				A1000514 /* SwiftSteam/Auth/SteamQRAuth.swift in Sources */,
@@ -826,23 +715,9 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
-		B3000005 /* Sources */ = {
-			isa = PBXSourcesBuildPhase;
-			buildActionMask = 2147483647;
-			files = (
-				B1000010 /* MadeiraJITHelper.swift in Sources */,
-				B1000011 /* JITBuiltInMessages.swift in Helper Sources */,
-			);
-			runOnlyForDeploymentPostprocessing = 0;
-		};
 /* End PBXSourcesBuildPhase section */
 
 /* Begin PBXTargetDependency section */
-		B3000006 /* PBXTargetDependency */ = {
-			isa = PBXTargetDependency;
-			target = B5000001 /* MadeiraJITHelper */;
-			targetProxy = B3000001 /* PBXContainerItemProxy */;
-		};
 /* End PBXTargetDependency section */
 
 /* Begin XCBuildConfiguration section */
@@ -1011,69 +886,6 @@
 			};
 			name = Release;
 		};
-		B8000001 /* Debug */ = {
-			isa = XCBuildConfiguration;
-			buildSettings = {
-				APPLICATION_EXTENSION_API_ONLY = YES;
-				CODE_SIGN_IDENTITY = "Apple Development";
-				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 4;
-				DEVELOPMENT_TEAM = V8NU3FX3TL;
-				"FRAMEWORK_SEARCH_PATHS[sdk=iphoneos*]" = "$(SRCROOT)/Frameworks/StikJIT.xcframework/ios-arm64";
-				GENERATE_INFOPLIST_FILE = NO;
-				INFOPLIST_FILE = MadeiraJITHelper/Info.plist;
-				IPHONEOS_DEPLOYMENT_TARGET = 26.0;
-				LD_RUNPATH_SEARCH_PATHS = (
-					"$(inherited)",
-					"@executable_path/../../Frameworks",
-				);
-				MARKETING_VERSION = 0.1.3;
-				"OTHER_LDFLAGS[sdk=iphoneos*]" = (
-					"$(inherited)",
-					"-framework",
-					StikJIT,
-				);
-				PRODUCT_BUNDLE_IDENTIFIER = "$(MADEIRA_BUNDLE_IDENTIFIER).JITHelper";
-				PRODUCT_NAME = "$(TARGET_NAME)";
-				SKIP_INSTALL = NO;
-				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
-				SUPPORTS_MACCATALYST = NO;
-				SWIFT_VERSION = 5.0;
-				TARGETED_DEVICE_FAMILY = "1,2";
-			};
-			name = Debug;
-		};
-		B8000002 /* Release */ = {
-			isa = XCBuildConfiguration;
-			buildSettings = {
-				APPLICATION_EXTENSION_API_ONLY = YES;
-				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 4;
-				DEVELOPMENT_TEAM = V8NU3FX3TL;
-				"FRAMEWORK_SEARCH_PATHS[sdk=iphoneos*]" = "$(SRCROOT)/Frameworks/StikJIT.xcframework/ios-arm64";
-				GENERATE_INFOPLIST_FILE = NO;
-				INFOPLIST_FILE = MadeiraJITHelper/Info.plist;
-				IPHONEOS_DEPLOYMENT_TARGET = 26.0;
-				LD_RUNPATH_SEARCH_PATHS = (
-					"$(inherited)",
-					"@executable_path/../../Frameworks",
-				);
-				MARKETING_VERSION = 0.1.3;
-				"OTHER_LDFLAGS[sdk=iphoneos*]" = (
-					"$(inherited)",
-					"-framework",
-					StikJIT,
-				);
-				PRODUCT_BUNDLE_IDENTIFIER = "$(MADEIRA_BUNDLE_IDENTIFIER).JITHelper";
-				PRODUCT_NAME = "$(TARGET_NAME)";
-				SKIP_INSTALL = NO;
-				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
-				SUPPORTS_MACCATALYST = NO;
-				SWIFT_VERSION = 5.0;
-				TARGETED_DEVICE_FAMILY = "1,2";
-			};
-			name = Release;
-		};
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
@@ -1091,15 +903,6 @@
 			buildConfigurations = (
 				A8000003 /* Debug */,
 				A8000004 /* Release */,
-			);
-			defaultConfigurationIsVisible = 0;
-			defaultConfigurationName = Release;
-		};
-		B7000001 /* Build configuration list for PBXNativeTarget "MadeiraJITHelper" */ = {
-			isa = XCConfigurationList;
-			buildConfigurations = (
-				B8000001 /* Debug */,
-				B8000002 /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;

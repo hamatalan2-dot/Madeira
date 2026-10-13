@@ -163,7 +163,6 @@ struct LibraryEntry: Codable, Identifiable {
     /// The Steam store app this game was matched to (Game details › Find on
     /// Steam). Only its public artwork is used: the library cover and the
     /// starting screen's background, when no cover file is chosen.
-    var steamID: Int?
     var arguments = ""
     /// The virtual monitor's size ("WxH"): the session default a game renders
     /// for (GuestDisplay.configureSessionDefault), and the Desktop entry's
@@ -280,10 +279,6 @@ struct LibraryEntry: Codable, Identifiable {
     /// MetalFX spatial upscaling factor (Display › MetalFX upscaling: 1.5 or 2;
     /// nil = off), passed on as this game's `metalfx-upscale` line.
     var metalFXUpscale: Double?
-    /// An Epic game installed by the library's Epic section (EpicInstall.swift):
-    /// Madeira starts its own program in Wine like any library game, and
-    /// `relativePath` is its install folder, relative to drive_c.
-    var epicAppName: String?
 
     /// What MadeiraConfig.applyGame writes for this game: the lines its pickers
     /// stand for, then its own config, which wins where both set a key.
@@ -755,67 +750,10 @@ final class LibraryModel: ObservableObject {
         entry.folderBytes = SteamInstallFiles.sizeOnDisk(appID: game.id, steamApps: Self.drive.appendingPathComponent(game.library, isDirectory: true)) ?? entry.folderBytes
         save(entry)
     }
-    /// An Epic game's library entry from its install record, without saving
-    /// (EpicInstall.swift): for opening Game details before anything changed.
-    func epicEntry(_ record: EpicInstallRecord) -> LibraryEntry {
-        let folder = record.folder
-        if var existing = entries.first(where: { $0.epicAppName == record.appName }) {
-            existing.relativePath = folder
-            return existing
-        }
-        var entry = LibraryEntry(title: record.title, relativePath: folder, bits: 0)
-        entry.epicAppName = record.appName
-        entry.folderBytes = record.installSize
-        if !record.launchExe.isEmpty, (try? Self.executable(folder + "/" + record.launchExe)) != nil {
-            entry.relativePath = folder + "/" + record.launchExe
-        }
-        if let url = try? Self.executable(entry.relativePath), let inspected = try? Self.inspect(url) {
-            entry.bits = inspected.bits
-            entry.graphicsAPI = inspected.graphicsAPI
-        }
-        return entry
-    }
     /// A Steam game was uninstalled: its entry goes with its files.
     func removeSteam(appID: Int) {
         guard entries.contains(where: { $0.steamAppID == appID }) else { return }
         persist(entries.filter { $0.steamAppID != appID })
-    }
-    /// An Epic game's library entry (EpicInstall.swift): one entry per app name,
-    /// made from the install record when its download finishes, like Steam's
-    /// upsertSteam. The manifest's launch executable is picked when it exists;
-    /// Game details' Program picker can change it later.
-    func upsertEpic(_ record: EpicInstallRecord) {
-        guard !readOnly else { return }
-        let folder = record.folder
-        var entry: LibraryEntry
-        if var existing = entries.first(where: { $0.epicAppName == record.appName }) {
-            existing.relativePath = folder
-            existing.title = record.title
-            entry = existing
-        } else {
-            entry = LibraryEntry(title: record.title, relativePath: folder, bits: 0)
-            entry.epicAppName = record.appName
-        }
-        entry.folderBytes = record.installSize
-        // The manifest's launch executable, when the record names one that is there.
-        if !record.launchExe.isEmpty,
-           (try? Self.executable(folder + "/" + record.launchExe)) != nil {
-            entry.relativePath = folder + "/" + record.launchExe
-        }
-        if entry.bits == 0, let url = try? Self.executable(entry.relativePath) {
-            // Bits and graphics API come from the program, as Steam's metadata read does.
-            if let inspected = try? Self.inspect(url) {
-                entry.bits = inspected.bits
-                if entry.graphicsAPI == nil { entry.graphicsAPI = inspected.graphicsAPI }
-            }
-        }
-        save(entry)
-        LogStore.shared.log("[epic-games] installed app=\(record.appName) build=\(record.buildVersion) bytes=\(record.installSize)")
-    }
-    /// An Epic game was uninstalled: its entry goes with its files.
-    func removeEpic(appName: String) {
-        guard entries.contains(where: { $0.epicAppName == appName }) else { return }
-        persist(entries.filter { $0.epicAppName != appName })
     }
     @discardableResult
     private func persist(_ next: [LibraryEntry]) -> Bool {
@@ -1610,29 +1548,7 @@ struct LibraryNavSearch: UIViewControllerRepresentable {
     }
 }
 
-struct SteamMatch: Decodable, Identifiable {
-    let id: Int
-    let name: String
-    let tiny_image: String?
-}
 
-/// The public Steam store: title search and store artwork for an app ID. No
-/// account, credentials, or private library access.
-enum SteamCatalog {
-    static func search(_ text: String) async throws -> [SteamMatch] {
-        var url = URLComponents(string: "https://store.steampowered.com/api/storesearch/")!
-        url.queryItems = [URLQueryItem(name: "term", value: text), URLQueryItem(name: "l", value: "english"), URLQueryItem(name: "cc", value: "US")]
-        var request = URLRequest(url: url.url!); request.timeoutInterval = 15
-        let (data, response) = try await URLSession.shared.data(for: request)
-        guard let http = response as? HTTPURLResponse, http.statusCode == 200, data.count < 2_000_000 else {
-            throw LibraryError.message("Steam search is unavailable. You can still edit the title and artwork manually.")
-        }
-        struct Results: Decodable { var items: [SteamMatch] }
-        return Array(try JSONDecoder().decode(Results.self, from: data).items.prefix(30))
-    }
-    static func cover(_ id: Int) -> URL? { URL(string: "https://cdn.cloudflare.steamstatic.com/steam/apps/\(id)/library_600x900.jpg") }
-    static func hero(_ id: Int) -> URL? { URL(string: "https://cdn.cloudflare.steamstatic.com/steam/apps/\(id)/library_hero.jpg") }
-}
 
 struct LibraryArtwork: View {
     let entry: LibraryEntry
@@ -1646,11 +1562,6 @@ struct LibraryArtwork: View {
                let image = UIImage(contentsOfFile: LibraryModel.documents.appendingPathComponent("madeira-art/" + URL(fileURLWithPath: name).lastPathComponent).path) {
                 Image(uiImage: image).resizable().scaledToFill()
                     .frame(width: geometry.size.width, height: geometry.size.height, alignment: .center).clipped()
-            } else if let id = entry.steamID ?? entry.steamAppID {   // a store match, else the Steam game itself
-                AsyncImage(url: backdrop ? SteamCatalog.hero(id) : SteamCatalog.cover(id)) { image in
-                    image.resizable().scaledToFill()
-                        .frame(width: geometry.size.width, height: geometry.size.height, alignment: .center).clipped()
-                } placeholder: { Color.clear }
             }
         }
         .frame(width: geometry.size.width, height: geometry.size.height)
@@ -1977,8 +1888,6 @@ enum AmbientArtwork {
             if let name = entry.coverFile {
                 image = UIImage(contentsOfFile: LibraryModel.documents
                     .appendingPathComponent("madeira-art/" + URL(fileURLWithPath: name).lastPathComponent).path)
-            } else if let id = entry.steamID ?? entry.steamAppID, let url = SteamCatalog.cover(id) {
-                image = await fetch(url)
             }
         }
         guard let image, image.size.width > 0 else { return nil }
@@ -2208,12 +2117,11 @@ struct LibraryCells<Item: Identifiable, Cell: View>: View {
 /// added and Steam's games together, each group in the library's Sort by order.
 enum LibraryGrouping {
     enum Source: Hashable {
-        case entry(UUID), steam(Int), epic(String)
+        case entry(UUID), steam(Int)
         var key: String {
             switch self {
             case .entry(let id): return "entry:" + id.uuidString
             case .steam(let appID): return "steam:\(appID)"
-            case .epic(let appName): return "epic:\(appName)"
             }
         }
     }
@@ -2320,59 +2228,18 @@ struct LibraryGroupedGames<LocalCell: View>: View {
     var layout = "cards"
     var sort = "played"
     var width: CGFloat = 390
-    /// Opens a game's Game details page (LibraryView's details sheet).
     let open: (LibraryEntry) -> Void
-    /// A game you added: LibraryView's own card, with its controller focus.
     @ViewBuilder let localCell: (_ entry: LibraryEntry, _ list: Bool, _ dense: Bool) -> LocalCell
     @ObservedObject private var library = LibraryModel.shared
-    @ObservedObject private var steamGames = SteamGamesModel.shared
-    @ObservedObject private var steam = SteamOwnedLibrary.shared
-    @Environment(\.scenePhase) private var scenePhase
     @AppStorage("madeiraLibraryCollapsedGroups") private var collapsedGroups = ""
-    @State private var steamSheet: SteamSelection?
-
-    private struct SteamSelection: Identifiable { let id: Int }
-
-    private struct Sources {
-        var games: [LibraryGrouping.Game] = []
-        var entries: [UUID: LibraryEntry] = [:]
-        var steam: [Int: SteamGamesRules.Item] = [:]
-    }
-
-    private var sources: Sources {
-        var result = Sources()
-        let query = search.trimmingCharacters(in: .whitespaces)
-        var steamEntries: [Int: (position: Int, entry: LibraryEntry)] = [:]
-        for (position, entry) in library.entries.enumerated() where entry.desktop != true {
-            if let appID = entry.steamAppID { steamEntries[appID] = (position, entry) }
-            else if query.isEmpty || entry.title.localizedCaseInsensitiveContains(query) {
-                result.entries[entry.id] = entry
-                result.games.append(LibraryGrouping.Game(entry: entry, position: position))
-            }
-        }
-        if SteamGamesSection.shown {
-            let enabled = SteamOwnedLibrary.enabled
-            let downloading = Set(steam.downloads.keys)
-            for item in SteamGamesRules.items(installed: steamGames.games, owned: enabled ? steam.owned : [], search: query) {
-                let installed = item.installed != nil || downloading.contains(item.id)
-                guard installed || (enabled && steam.signedIn) else { continue }
-                let recorded = steamEntries[item.id]
-                let steamPlayed = steam.playtime[item.id].flatMap {
-                    $0.lastPlayed > 0 ? Date(timeIntervalSince1970: TimeInterval($0.lastPlayed)) : nil
-                }
-                result.steam[item.id] = item
-                result.games.append(LibraryGrouping.Game(source: .steam(item.id), title: item.name, installed: installed,
-                                                         lastPlayed: [recorded?.entry.lastPlayed, steamPlayed].compactMap { $0 }.max(),
-                                                         bytes: recorded?.entry.folderBytes, position: recorded?.position))
-            }
-        }
-        return result
-    }
 
     var body: some View {
-        let sources = self.sources
-        let groups = LibraryGrouping.groups(sources.games, by: grouping, sort: sort)
-        let collapsed = LibraryGrouping.collapsed(collapsedGroups)
+        let query = search.trimmingCharacters(in: .whitespaces)
+        let games = library.entries.enumerated().compactMap { position, entry -> LibraryGrouping.Game? in
+            guard entry.desktop != true, query.isEmpty || entry.title.localizedCaseInsensitiveContains(query) else { return nil }
+            return LibraryGrouping.Game(entry: entry, position: position)
+        }
+        let groups = LibraryGrouping.groups(games, by: grouping, sort: sort)
         VStack(alignment: .leading, spacing: 24) {
             if groups.isEmpty {
                 if search.isEmpty {
@@ -2386,58 +2253,20 @@ struct LibraryGroupedGames<LocalCell: View>: View {
                 VStack(alignment: .leading, spacing: 14) {
                     if let title = group.title {
                         LibrarySectionHeader(title: title, count: group.games.count,
-                                             collapsed: SteamGamesSection.collapsible ? collapsedBinding(key) : nil) { EmptyView() }
+                                             collapsed: Binding(get: { LibraryGrouping.collapsed(collapsedGroups).contains(key) }, set: { on in
+                            var set = LibraryGrouping.collapsed(collapsedGroups)
+                            if on { set.insert(key) } else { set.remove(key) }
+                            collapsedGroups = LibraryGrouping.storing(set)
+                        })) { EmptyView() }
                     }
-                    if !(collapsed.contains(key) && SteamGamesSection.collapsible) {
+                    if !LibraryGrouping.collapsed(collapsedGroups).contains(key) {
                         LibraryCells(items: group.games, layout: layout, width: width) { game, list, dense in
-                            cell(game, sources, list: list, dense: dense)
+                            if case .entry(let id) = game.source, let entry = library.entries.first(where: { $0.id == id }) {
+                                localCell(entry, list, dense)
+                            }
                         }
                     }
                 }
-            }
-        }
-        // As the Steam section does: the library reappears after every session.
-        .onAppear {
-            steamGames.refresh()
-            if SteamOwnedLibrary.enabled { steam.start(); steam.reconcileSession() }
-        }
-        .onChange(of: scenePhase) { _, phase in
-            if phase == .active { steamGames.refresh(); if SteamOwnedLibrary.enabled { steam.reconcileSession() } }
-        }
-        .sheet(item: $steamSheet) { selection in
-            SteamGameSheet(appID: selection.id) { entry in
-                // Let the download sheet finish dismissing before presenting the details page.
-                DispatchQueue.main.asyncAfter(deadline: .now() + 0.45) { open(entry) }
-            }
-        }
-        .alert("Steam", isPresented: Binding(get: { steam.error != nil }, set: { if !$0 { steam.error = nil } })) {
-            Button("OK", role: .cancel) { steam.error = nil }
-        } message: { Text(steam.error ?? "") }
-    }
-
-    private func collapsedBinding(_ key: String) -> Binding<Bool> {
-        Binding(get: { LibraryGrouping.collapsed(collapsedGroups).contains(key) }, set: { on in
-            var set = LibraryGrouping.collapsed(collapsedGroups)
-            if on { set.insert(key) } else { set.remove(key) }
-            collapsedGroups = LibraryGrouping.storing(set)
-        })
-    }
-
-    @ViewBuilder private func cell(_ game: LibraryGrouping.Game, _ sources: Sources, list: Bool, dense: Bool) -> some View {
-        switch game.source {
-        case .entry(let id):
-            if let entry = sources.entries[id] { localCell(entry, list, dense) }
-        case .epic(let appName):
-            // An Epic game without a library entry yet: installing. Not openable.
-            EmptyView()
-                .accessibilityLabel("Installing \(appName)")
-        case .steam(let appID):
-            if let item = sources.steam[appID] {
-                Button {
-                    if let installed = item.installed { open(library.steamEntry(installed, title: item.name)) }
-                    else { steamSheet = SteamSelection(id: appID) }
-                } label: { SteamGameCell(item: item, list: list, dense: dense) }
-                    .libraryCardButtonStyle(grid: !list)
             }
         }
     }
@@ -2493,16 +2322,14 @@ struct LibraryView: View {
             return $0.title.localizedStandardCompare($1.title) == .orderedAscending
         }
     }
-    /// The games you added in the page's order, for the controller's focus. Grouping
-    /// and sorting go game by game, so their order among the Steam games is the
-    /// order without them.
+    /// The manually added games in the page's order, for controller focus.
     private var focusOrder: [LibraryEntry] {
         guard group != "platform" else { return entries }
         // A library file edited by hand (or written by a fork) may repeat an id: keep the first.
         let positions = Dictionary(model.entries.enumerated().map { ($1.id, $0) }, uniquingKeysWith: { first, _ in first })
         let byID = Dictionary(entries.map { ($0.id, $0) }, uniquingKeysWith: { first, _ in first })
         let games = entries.map { LibraryGrouping.Game(entry: $0, position: positions[$0.id] ?? 0) }
-        let collapsed = SteamGamesSection.collapsible ? LibraryGrouping.collapsed(collapsedGroups) : []
+        let collapsed = LibraryGrouping.collapsed(collapsedGroups)
         return LibraryGrouping.groups(games, by: group, sort: sort)
             .filter { !collapsed.contains(group + "." + $0.id) }
             .flatMap(\.games).compactMap { game in
@@ -2553,9 +2380,6 @@ struct LibraryView: View {
             EndedSessionSurface.install(); EndedSessionSurface.hide(reason: "library-appeared")
             // First-run setup opens once on a new install.
             onboarding.presentIfNeeded()
-        }
-        .onAppear {
-            LogStore.shared.log("[library-sections] native-steam=\(SteamOwnedLibrary.enabled ? 1 : 0) sections=\(SteamGamesSection.shown ? 1 : 0) collapse=\(SteamGamesSection.collapsible ? 1 : 0)")
         }
         // ml1216: a session replaces the library (ContentView), and the skin's run-loop
         // observer, display link and view walks kept running on the main thread through
@@ -2665,14 +2489,11 @@ struct LibraryView: View {
             if settingsShow("credits", "thanks", "Will Faust", "Nick", "125hz", "Jfishin", "Jesse", "JesseLovelace", "Dan Perks", "danperks", "bahacan16", "spitefulowl", "meshoklv", "TheHadesc") {
                 Section {
                     MadeiraCredit(name: "Will Faust", handle: "willfaust", role: "Created Madeira")
-                    MadeiraCredit(name: "Nick", handle: "125hz", role: "32-bit game support, the game library and Madeira Dock")
-                    MadeiraCredit(name: "Jfishin", handle: "Jfishin", role: "The original native Steam sign-in, library and downloads")
-                    MadeiraCredit(name: "Jesse", handle: "JesseLovelace", role: "Steam Cloud saves, faster game launches, and fixes that let more games run")
+                    MadeiraCredit(name: "Nick", handle: "125hz", role: "32-bit game support and the game library")
                     MadeiraCredit(name: "Dan Perks", handle: "danperks", role: "In-app JIT without StikDebug, and pairing without a computer")
                     MadeiraCredit(name: "bahacan16", handle: "bahacan16", role: "Direct3D 12 and DXMT fixes, game launcher windows, per-game settings, PlayStation controllers, and save backups")
                     MadeiraCredit(name: "spitefulowl", handle: "spitefulowl", role: "Wine and FEX runtime fixes, DXMT texture and memory fixes, audio, the swap tier, and library launch options")
                     MadeiraCredit(name: "meshoklv", handle: "meshoklv", role: "Controller fixes for games that ship their own XInput or need focus, touch taps that stay off the mouse, and a crash-guard fix")
-                    MadeiraCredit(name: "TheHadesc", handle: "TheHadesc", role: "Madeira Dock starts for games whose Steam launch entries do not start at zero, and a touch gamepad that survives the in-game keyboard")
                 } header: { Text("Credits") } footer: {
                     Text("Madeira is built on Wine, FEX-Emu, DXMT by Feifan He (3Shain) with the Direct3D 9 frontend by David Acevedo (dacevedo12), rpmalloc by Mattias Jansson, StikDebug, StikJIT and idevice. Thank you to everyone who contributes to these projects.")
                 }
@@ -2723,59 +2544,23 @@ struct LibraryView: View {
                         .id(LibraryEntry.desktopID)
                         .overlay(RoundedRectangle(cornerRadius: 22).stroke(focused == LibraryEntry.desktopID && controller.connected ? Color.cyan : .clear, lineWidth: 3))
                 }
-                // The library's sections, as in the fork: Steam (installed and downloading
-                // Steam games, then Not installed), then Other games, the games you added.
-                // Steam games start through Madeira Dock (SteamGames.swift); an installed one
-                // opens its Game details page like any library game. Without the Steam
-                // section the games you added are one grid.
-                // Installed Steam games first, then the games you added, then the
-                // account's Not installed games. With nothing installed (or
-                // downloading) the games you added are the top section and the
-                // whole Steam section, sign-in included, follows them.
-                // Any other Group by choice lists every game in one set of groups.
+                // Manual-only library: each entry is selected from an executable
+                // inside Madeira's drive_c. Store account libraries are not shown.
                 if group != "platform" {
                     LibraryGroupedGames(grouping: group, search: search, layout: layout, sort: sort, width: viewport.size.width,
                                         open: { selected = $0 }) { entry, list, dense in
                         libraryItem(entry, list: list, dense: dense)
                     }
-                } else {
-                let steamFirst = MadeiraDock.enabled && SteamGamesSection.hasInstalled
-                if steamFirst {
-                    SteamGamesSection(search: search, layout: layout, sort: sort, width: viewport.size.width,
-                                      part: .installed, open: { selected = $0 })
-                }
-                if SteamGamesSection.shown {
-                    VStack(alignment: .leading, spacing: 14) {
-                        // Games are added with the + in the navigation bar.
-                        LibrarySectionHeader(title: "Other games", count: entries.count,
-                                             collapsed: SteamGamesSection.collapsible ? $hideOthers : nil) { EmptyView() }
-                        if hideOthers && SteamGamesSection.collapsible {
-                            EmptyView()
-                        } else if entries.isEmpty {
-                            Text(search.isEmpty
-                                 ? "Copy a game's folder into Madeira › wine › drive_c with the Files app, then tap + and choose its .exe."
-                                 : "No other games match your search.")
-                                .foregroundStyle(.secondary)
-                        } else {
-                            cells(entries, width: viewport.size.width)
-                        }
-                    }
-                    if MadeiraDock.enabled {
-                        SteamGamesSection(search: search, layout: layout, sort: sort, width: viewport.size.width,
-                                          part: steamFirst ? .notInstalled : .all, open: { selected = $0 })
-                    }
-                } else if model.entries.filter({ $0.desktop != true && $0.steamAppID == nil }).isEmpty {
+                } else if entries.isEmpty {
                     ContentUnavailableView("Make yourself at home", systemImage: "gamecontroller", description: Text("Copy a game's folder into Madeira › wine › drive_c with the Files app, then tap + and choose its .exe."))
                 } else {
                     cells(entries, width: viewport.size.width)
-                }
                 }
             }
             // Ambient light behind the grid cards, in the content's own space so it scrolls with them.
             .backgroundPreferenceValue(AmbientGlowKey.self) { AmbientGlowLayer(items: $0) }
             .padding(16).frame(maxWidth: 1100).frame(maxWidth: .infinity)
         }
-        .refreshable { await SteamGamesSection.refresh() }
         .onReceive(controller.commands) { command in
             guard tab == 0, selected == nil, !browser, !onboarding.presented else { return }
             let items = focusOrder
@@ -2923,7 +2708,6 @@ struct LibraryDetail: View {
     @Environment(\.dismiss) private var dismiss
     @ObservedObject private var model = LibraryModel.shared
     @State private var importCover = false
-    @State private var findCover = false
     @State private var remove = false
     @State private var leaving = false
     @State private var error: String?
@@ -3009,9 +2793,8 @@ struct LibraryDetail: View {
                 }
                 if entry.desktop != true { Section("Library details") {
                     TextField("Title", text: $entry.title)
-                    Button("Find on Steam", systemImage: "magnifyingglass") { findCover = true }
                     Button("Choose cover image", systemImage: "photo") { importCover = true }
-                    if entry.coverFile != nil { Button((entry.steamAppID ?? entry.steamID) != nil ? "Use Steam artwork" : "Remove cover image") { entry.coverFile = nil } }
+                    if entry.coverFile != nil { Button("Remove cover image") { entry.coverFile = nil } }
                 } }
                 // A Steam game's cloud saves, then how it starts, under its library
                 // details (SteamGames.swift).
@@ -3205,7 +2988,6 @@ struct LibraryDetail: View {
             .toolbarBackground(.regularMaterial, for: .navigationBar)
             .toolbarBackground(.visible, for: .navigationBar)
             .toolbar { ToolbarItem(placement: .confirmationAction) { Button("Done") { model.save(entry); dismiss() } } }
-            .sheet(isPresented: $findCover) { SteamSearchView(query: entry.title) { match in entry.steamID = match.id; entry.title = match.name; entry.coverFile = nil } }
             .fileImporter(isPresented: $importCover, allowedContentTypes: [.image]) { result in
                 do {
                     let url = try result.get(); let access = url.startAccessingSecurityScopedResource(); defer { if access { url.stopAccessingSecurityScopedResource() } }
@@ -3255,44 +3037,6 @@ struct LibraryGameConfigEditor: View {
     }
 }
 
-/// Game details › Find on Steam: searches the public store by title; choosing
-/// a result gives the entry that app's name and store artwork.
-struct SteamSearchView: View {
-    @State var query: String
-    var select: (SteamMatch) -> Void
-    @Environment(\.dismiss) private var dismiss
-    @State private var results: [SteamMatch] = []
-    @State private var error: String?
-    @State private var loading = false
-    @State private var submitted = ""
-    var body: some View {
-        NavigationStack {
-            List {
-                if loading { ProgressView("Searching Steam…") }
-                if let error { Text(error).foregroundStyle(.secondary) }
-                ForEach(results) { match in
-                    Button { select(match); dismiss() } label: {
-                        HStack {
-                            AsyncImage(url: URL(string: match.tiny_image ?? "")) { $0.resizable().scaledToFit() } placeholder: { Image(systemName: "gamecontroller") }.frame(width: 70, height: 40)
-                            Text(match.name).foregroundStyle(.primary)
-                        }
-                    }
-                }
-            }.navigationTitle("Find on Steam")
-            .searchable(text: $query, prompt: "Title").onSubmit(of: .search) { submitted = query }
-            .toolbar { ToolbarItem(placement: .confirmationAction) { Button("Done") { dismiss() } } }
-            .onAppear { submitted = query }
-            .task(id: submitted) {
-                guard !submitted.trimmingCharacters(in: .whitespaces).isEmpty else { return }
-                loading = true; error = nil
-                do { let found = try await SteamCatalog.search(submitted); try Task.checkCancellation(); results = found; if found.isEmpty { error = "No matches. Try a different title." } }
-                catch is CancellationError { return }
-                catch { self.error = error.localizedDescription }
-                loading = false
-            }
-        }
-    }
-}
 
 /// Keyboard-and-mouse mode: one row per controller input with a menu of what it
 /// does, saved to the game. Used as a page of the Session menu (live: the driver

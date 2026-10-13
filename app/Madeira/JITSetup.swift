@@ -309,7 +309,7 @@ final class JITCoordinator: ObservableObject {
             assertionFailure("Automatic must resolve to a concrete JIT method")
         case .stikDebug:
             guard StikJITHelper.isAvailable else {
-                let message = "StikDebug is not installed. Install it or choose Built-in StikJIT."
+                let message = "StikDebug is not installed. Install StikDebug and import this device's pairing file."
                 error = message
                 showSetup = true
                 completion(.failure(CoordinatorError.setupRequired(message)))

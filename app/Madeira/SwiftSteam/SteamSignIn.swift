@@ -26,7 +26,7 @@ enum SteamSignIn {
     }
 
     /// `env.MADEIRA_STEAM_SIGNIN = 0` hides the sign-in button.
-    static var isEnabled: Bool { flag("MADEIRA_STEAM_SIGNIN", default: true) }
+    static var isEnabled: Bool { false }
 
     static var isSignedIn: Bool { credentialsForDock() != nil }
 

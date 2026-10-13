@@ -20,7 +20,7 @@ enum StikJITHelper {
             case .invalidRequest:
                 return "Madeira could not create the StikDebug request."
             case .unavailable:
-                return "StikDebug is not installed. Install it, or configure Built-in StikJIT."
+                return "StikDebug is not installed. Install StikDebug and configure its pairing file."
             case .timedOut:
                 return "StikDebug did not attach to Madeira within 90 seconds. Check its pairing file and LocalDevVPN, then try again."
             }

@@ -55,7 +55,7 @@ struct DockGame: Identifiable, Equatable, Sendable {
 /// transfer file and a numeric report file (C:\madeira-dock.txt).
 enum MadeiraDock {
     /// `env.MADEIRA_DOCK = 0` hides Dock. Without a built dockhost.exe it is hidden too.
-    static var enabled: Bool { SteamSignIn.flag("MADEIRA_DOCK", default: true) && bundled }
+    static var enabled: Bool { false }
     static var bundled: Bool {
         Bundle.main.url(forResource: "dockhost", withExtension: "exe", subdirectory: "arm64ec-windows") != nil
     }
