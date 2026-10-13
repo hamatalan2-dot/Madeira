@@ -8,6 +8,7 @@ final class LogStore: ObservableObject {
     @Published var entries: [LogEntry] = []
 
     private let logFileURL: URL
+    private let errorLogFileURL: URL
     private let dateFormatter: DateFormatter = {
         let f = DateFormatter()
         f.dateFormat = "HH:mm:ss.SSS"
@@ -69,6 +70,8 @@ final class LogStore: ObservableObject {
     private init() {
         let docs = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first!
         logFileURL = docs.appendingPathComponent("madeira-log.txt")
+        errorLogFileURL = docs.appendingPathComponent("madeira-error-log.txt")
+        try? "".write(to: errorLogFileURL, atomically: true, encoding: .utf8)
 
         // ml601: ROTATE, don't destroy.
         //
@@ -181,6 +184,8 @@ final class LogStore: ObservableObject {
 
         let (sig, level) = LogPattern.canonicalize(raw)
         if sig.isEmpty { return }
+        guard level == .error else {return }
+        appendErrorLine(raw)
 
         let now = Date()
         stateLock.lock()
@@ -347,4 +352,17 @@ final class LogStore: ObservableObject {
             }
         }
     }
+
+    private func appendErrorLine(_ message: String) {
+        let line = massage + "\n"
+
+        guard let data = line.data(using: .utf8),
+              let handle = try? FileHandle(forWritingTo: errorLogFileURL) else {
+            return 
+        }
+        handle.seekToEndOfFile()
+        handle.write(data)
+        handle.closeFile()
+    }
+
 }
