@@ -161,10 +161,14 @@ enum DevicePerformanceProfile {
         var system = utsname()
         uname(&system)
 
+        let machineSize = MemoryLayout.size(
+            ofValue: system.machine
+        )
+
         return withUnsafePointer(to: &system.machine) {
             $0.withMemoryRebound(
                 to: CChar.self,
-                capacity: MemoryLayout.size(ofValue: system.machine)
+                capacity: machineSize
             ) {
                 String(cString: $0)
             }
