@@ -354,7 +354,7 @@ final class LogStore: ObservableObject {
     }
 
     private func appendErrorLine(_ message: String) {
-        let line = massage + "\n"
+        let line = message + "\n"
 
         guard let data = line.data(using: .utf8),
               let handle = try? FileHandle(forWritingTo: errorLogFileURL) else {
