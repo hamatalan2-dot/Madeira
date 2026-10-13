@@ -977,8 +977,10 @@ final class LibraryModel: ObservableObject {
             // directly by default, as upstream starts every game; the details page
             // warns that Wine then stops when cmd.exe, its first process, exits.
             let relative = String(url.resolvingSymlinksInPath().path.dropFirst(drive.path.count + 1))
+            // A batch file has no PE architecture.  Do not claim the x64-only
+            // A15 profile for it; its eventual program is checked separately.
             return LibraryEntry(title: url.deletingPathExtension().lastPathComponent.replacingOccurrences(of: "_", with: " "),
-                                relativePath: relative, bits: 0, applyDeviceProfile: true)
+                                relativePath: relative, bits: 0)
         }
         let h = try FileHandle(forReadingFrom: url); defer { try? h.close() }
         let dos = try h.read(upToCount: 64) ?? Data()
@@ -992,8 +994,10 @@ final class LibraryModel: ObservableObject {
         guard machine == 0x14c || machine == 0x8664 else { throw LibraryError.message("Only x86 and x64 executables are supported.") }
         let relative = String(url.resolvingSymlinksInPath().path.dropFirst(drive.path.count + 1))
         let name = url.deletingPathExtension().lastPathComponent.replacingOccurrences(of: "_", with: " ")
+        // The packaged runtime is x64-only.  Its conservative A15 default is
+        // therefore applied only to a recognised x64 executable.
         var entry = LibraryEntry(title: name, relativePath: relative, bits: machine == 0x14c ? 32 : 64,
-                                 applyDeviceProfile: true)
+                                 applyDeviceProfile: machine == 0x8664)
         entry.graphicsAPI = graphicsImports(url)
         return entry
     }
@@ -3086,7 +3090,7 @@ struct LibraryDetail: View {
                 }
                 // The A15 preset is intentionally for manually added offline
                 // Windows games only; store entries keep their own launch paths.
-                if entry.desktop != true, entry.steamAppID == nil, entry.epicAppName == nil,
+                if entry.desktop != true, entry.bits == 64, entry.steamAppID == nil, entry.epicAppName == nil,
                    let profile = DevicePerformanceProfile.defaultForCurrentDevice {
                     Section("Performance profile") {
                         LabeledContent("Default for this iPhone", value: profile.label)
