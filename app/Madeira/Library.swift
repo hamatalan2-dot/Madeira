@@ -3082,30 +3082,40 @@ struct LibraryDetail: View {
                     Button("Choose cover image", systemImage: "photo") { importCover = true }
                     if entry.coverFile != nil { Button((entry.steamAppID ?? entry.steamID) != nil ? "Use Steam artwork" : "Remove cover image") { entry.coverFile = nil } }
                 } }
+
                 // A Steam game's cloud saves, then how it starts, under its library
                 // details (SteamGames.swift).
                 if let appID = entry.steamAppID {
                     SteamCloudSection(appID: appID)
                     SteamEntrySection(entry: $entry) { leaving = true; dismiss() }
+                    
                 }
+
+
+
                 // The A15 preset is intentionally for manually added offline
                 // Windows games only; store entries keep their own launch paths.
-                if entry.desktop != true, entry.bits == 64, entry.steamAppID == nil, entry.epicAppName == nil,
+
+                if entry.desktop != true, entry.steamAppID == nil, entry.epicAppName == nil,
                    let profile = DevicePerformanceProfile.defaultForCurrentDevice {
-                    Section("Performance profile") {
+                    Section(header: { Text("Performance profile") }){
                         LabeledContent("Default for this iPhone", value: profile.label)
                         if entry.performanceProfile == profile.rawValue {
                             Label("Applied to this game", systemImage: "checkmark.circle.fill")
-                                .foregroundStyle(.green)
+                                 .foregroundStyle(.green)
                         } else {
                             Text("This game keeps its existing display settings.")
                                 .font(.caption).foregroundStyle(.secondary)
                         }
                         Button("Apply \(profile.label)") { profile.apply(to: &entry) }
                     } footer: {
-                        Text(profile.summary + " Applying it resets only this game's resolution and FPS limit; compatibility and graphics options are unchanged.")
+                      Text(profile.summary + " Applying it resets only this game's resolution and FPS limit; compatibility and graphics options are unchanged.")
                     }
                 }
+
+
+
+
                 Section {
                     // The Windows screen the game renders for (and the Desktop's size).
                     // ml1172: this device's choices (ResolutionChoices), grouped.
