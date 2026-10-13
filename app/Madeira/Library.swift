@@ -2837,55 +2837,39 @@ struct LibraryDetail: View {
                     SteamCloudSection(appID: appID)
                     SteamEntrySection(entry: $entry) { leaving = true; dismiss() }
                 }
+
+
+
+
                 
+                if entry.desktop != true,
+                   entry.bits == 64,
+                   DevicePerformanceProfile.isAvailable {
+                       Section {
+                           LabeledContent(
+                               "Device",
+                               value: "iPhone 13 Pro Max (A15)"
+                           )
 
+                           Text(DevicePerformanceProfile.summary)
+                               .font(.footnote)
+                               .foregroundStyle(.secondary)
 
-
-                
-if entry.desktop != true,
-   entry.bits == 64,
-   entry.steamAppID == nil,
-   entry.epicAppName == nil,
-   DevicePerformanceProfile.isAvailable {
-
-    Section {
-        LabeledContent(
-            "Device",
-            value: "iPhone 13 Pro Max (A15)"
-        )
-
-        Text(DevicePerformanceProfile.summary)
-            .font(.footnote)
-            .foregroundStyle(.secondary)
-
-        Button("Apply A15 Balanced") {
-            var updated = entry
-            DevicePerformanceProfile.apply(to: &updated)
-            entry = updated
-            model.save(updated)
-        }
-    } header: {
-        Text("Performance profile")
-    } footer: {
-        Text(
-            "Changes only this game's resolution and frame-rate target. You can adjust either setting below."
-        )
-    }
-}
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+                           Button("Apply A15 Balanced") {
+                               var updated = entry
+                               DevicePerformanceProfile.apply(to: &updated)
+                               entry = updated
+                               model.save(updated)
+                           }
+                       } header: {
+                           Text("Performance profile")
+                       } footer: {
+                           Text(
+                               "Changes only this game's resolution and frame-rate target. You can adjust either setting below."
+                           )
+                       }
+                   }
+  
                 
                 Section {
                     // The Windows screen the game renders for (and the Desktop's size).
