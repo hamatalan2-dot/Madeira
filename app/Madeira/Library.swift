@@ -2639,15 +2639,7 @@ struct LibraryView: View {
             if SteamSettingsSection.shown, settingsShow("Steam", "Dock", "sign in", "account", "setup") {
                 SteamSettingsSection(open: { settingsSheet = $0 })
             }
-            if settingsShow("epic", "legendary", "epic games", "sign in", "account") {
-                Section("Epic Games (Legendary)") {
-                    Button { settingsSheet = .epicSignIn } label: {
-                        Label(EpicAuth.shared.signedIn ? "Epic Games: \(EpicAuth.shared.accountName ?? "Signed in")" : "Sign in to Epic Games", systemImage: "gamecontroller")
-                    }
-                }
-            }
             if settingsShow(".NET", "Mono", "Wine Mono", "framework", "download") { WineMonoSettingsSection() }
-            if settingsShow("ubisoft", "connect", "uplay", "launcher") { UbisoftConnectSettingsSection() }
             if settingsShow("saves", "backup", "restore", "save games") { SavesSection() }
             if settingsShow("appearance", "liquid metal", "metal", "glass") {
                 Section {
@@ -2698,7 +2690,6 @@ struct LibraryView: View {
             switch sheet {
             case .allSettings: AllSettingsView()
             case .steamSignIn: SteamSignInView()
-            case .epicSignIn: EpicSignInView { entry in selected = entry }
             case .dock: MadeiraDockView(start: startDock)
             }
         }
@@ -3640,7 +3631,7 @@ struct MadeiraCredit: View {
 /// MADEIRA_RUNTIME_SETTINGS=0 hides this section.
 /// A sheet opened from Settings; LibraryView presents it from the Form itself.
 enum SettingsSheet: String, Identifiable {
-    case allSettings, steamSignIn, epicSignIn, dock
+    case allSettings, steamSignIn, dock
     var id: String { rawValue }
 }
 

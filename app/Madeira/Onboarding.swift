@@ -16,10 +16,8 @@ import UniformTypeIdentifiers
 // skipped. Settings › JIT or Settings › Steam can reopen it in full.
 // env.MADEIRA_ONBOARDING = 0 never opens it.
 //
-// The JIT page offers three ways in (in-app pairing on iOS 27, a pairing
-// file from a computer, StikDebug), each with its own numbered steps. It stores
-// only the chosen method and, when selected, pairs on this device through
-// OnDevicePairing or imports the pairing file through JITCoordinator.
+// The JIT page exposes StikDebug only. The older in-app pairing implementation
+// remains in the target for compatibility, but its setup routes are not exposed.
 // Sign-in goes through SteamSignIn (the
 // token stays in its Keychain store) and the components through
 // MadeiraDockModel.prepareClient(), which downloads and verifies files without
@@ -347,19 +345,14 @@ struct OnboardingView: View {
         }
     }
 
-    // JIT: pick one of three ways in, then follow its numbered steps.
+    // JIT: use StikDebug, then follow its numbered steps.
 
     private var pairedOnDevice: Bool { jit.pairingImported && jit.pairingSource == .onDevice }
     private var fileImported: Bool { jit.pairingImported && jit.pairingSource == .imported }
 
     @ViewBuilder private var jitPage: some View {
-        switch jitPath {
-        case nil: jitChoices
-        case .onDevice: onDeviceGuide
-        case .pairingFile: pairingFileGuide
-        case .stikDebug: stikDebugGuide
-        case .shortcut: shortcutPage
-        }
+        // StikDebug is the sole supported JIT path in this build.
+        if jitPath == .shortcut { shortcutPage } else { stikDebugGuide }
     }
 
     private var jitChoices: some View {

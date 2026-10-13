@@ -190,19 +190,17 @@ final class JITCoordinator: ObservableObject {
     @Published private(set) var pairingSource = JITPairingFileStore.source
 
     private init() {
-        method = UserDefaults.standard.string(forKey: "madeiraJITMethod")
-            .flatMap(JITMethod.init(rawValue:)) ?? .automatic
+        // This build intentionally supports JIT through StikDebug only.
+        // Do not restore older Automatic/Built-in preferences after an update.
+        method = .stikDebug
     }
 
-    var resolvedMethod: JITMethod {
-        guard method == .automatic else { return method }
-        return StikJITHelper.isAvailable ? .stikDebug : .builtIn
-    }
+    var resolvedMethod: JITMethod { .stikDebug }
 
     var automaticDescription: String {
         StikJITHelper.isAvailable
             ? "StikDebug is installed, so Madeira will open it directly."
-            : "StikDebug was not detected, so Madeira will use its built-in helper."
+            : "Install StikDebug and import this device's pairing file before enabling JIT."
     }
 
     func refreshPairingStatus() {
@@ -538,11 +536,7 @@ struct JITSettingsSection: View {
 
     var body: some View {
         Section {
-            Picker("JIT method", selection: $coordinator.method) {
-                ForEach(JITMethod.allCases) { method in
-                    Text(method.title).tag(method)
-                }
-            }
+            LabeledContent("JIT method", value: "StikDebug only")
             Button {
                 coordinator.showSetup = true
             } label: {
@@ -555,10 +549,8 @@ struct JITSettingsSection: View {
                     Label("Run setup again", systemImage: "wand.and.stars")
                 }
             }
-            if coordinator.method == .automatic {
-                Text(coordinator.automaticDescription)
-                    .font(.caption).foregroundStyle(.secondary)
-            }
+            LabeledContent("StikDebug",
+                           value: StikJITHelper.isAvailable ? "Installed" : "Not detected")
             if JITShortcutFile.supported, let url = JITShortcutFile.url {
                 Button {
                     LogStore.shared.log("[jit-shortcut] add: iCloud link")
@@ -574,90 +566,35 @@ struct JITSettingsSection: View {
         } header: {
             Text("JIT")
         } footer: {
-            Text("When LocalDevVPN can't reach this device, Enable JIT runs your \(JITNetworkShortcut.name) shortcut: it turns Cellular Data off when there's no Wi-Fi and connects LocalDevVPN, then puts both back once the game has started. Each run opens Shortcuts for a moment.")
+            Text("Madeira uses StikDebug to enable JIT. StikDebug needs a pairing file and an active LocalDevVPN connection. The optional shortcut helps connect LocalDevVPN before launching a game.")
         }
     }
 }
 
 struct JITSetupView: View {
     @ObservedObject private var coordinator = JITCoordinator.shared
-    @ObservedObject private var pairing = OnDevicePairing.shared
-    @State private var importing = false
     @Environment(\.dismiss) private var dismiss
-
-    private var pairingLabel: String {
-        switch coordinator.pairingSource {
-        case .onDevice: return "Paired in Madeira"
-        case .imported: return "File imported"
-        case nil: return "Not set up"
-        }
-    }
 
     var body: some View {
         NavigationStack {
             Form {
                 Section {
-                    Picker("Method", selection: $coordinator.method) {
-                        ForEach(JITMethod.allCases) { method in
-                            Text(method.title).tag(method)
-                        }
-                    }
-                    if coordinator.method == .automatic {
-                        Text(coordinator.automaticDescription)
-                            .font(.caption).foregroundStyle(.secondary)
-                    }
+                    LabeledContent("JIT method", value: "StikDebug only")
                     LabeledContent("StikDebug",
                                    value: StikJITHelper.isAvailable ? "Installed" : "Not detected")
-                    LabeledContent("Built-in helper",
-                                   value: MadeiraBuiltInJIT.isAvailable ? "Available" : "Unavailable")
+                    if StikJITHelper.isAvailable {
+                        Button("Enable JIT with StikDebug") {
+                            coordinator.method = .stikDebug
+                            coordinator.enable() { _ in }
+                        }
+                    } else {
+                        Link("Install StikDebug",
+                             destination: URL(string: "https://github.com/StikDebug/StikDebug/releases/latest")!)
+                    }
                 } header: {
-                    Text("JIT method")
+                    Text("JIT setup")
                 } footer: {
-                    Text("Automatic uses StikDebug when it is installed. Madeira does not silently change methods after a failure.")
-                }
-
-                if coordinator.method != .stikDebug {
-                    Section {
-                        LabeledContent("Pairing", value: pairingLabel)
-                        if OnDevicePairing.isSupported {
-                            Button(coordinator.pairingSource == .onDevice ? "Pair in Madeira again" : "Pair in Madeira") {
-                                pairing.start()
-                            }
-                            .disabled(pairing.active)
-                            OnDevicePairingPanel()
-                        }
-                        Button("Import pairing file") { importing = true }
-                        Link("How to create a pairing file",
-                             destination: URL(string: "https://github.com/StikDebug/StikDebug-Guide/blob/main/pairing_file.md")!)
-                        Button(LocalDevVPN.actionTitle) { LocalDevVPN.open() }
-                    } header: {
-                        Text("Built-in StikJIT")
-                    } footer: {
-                        Text(OnDevicePairing.isSupported
-                             ? "Pair in Madeira or import a pairing file made on a computer, connect LocalDevVPN, then check setup. The pairing file is kept in this device's Keychain."
-                             : "Import this device's pairing file, connect LocalDevVPN, then check setup. The pairing file is kept in this device's Keychain. Pairing in Madeira needs iOS 27 or later.")
-                    }
-
-                    Section {
-                        Button("Check setup") { coordinator.prepareBuiltIn() }
-                            .disabled(coordinator.busy || !coordinator.pairingImported)
-                        Button("Enable JIT") { coordinator.enableBuiltIn() }
-                            .disabled(coordinator.busy || !coordinator.pairingImported)
-                        Button("Reset Developer Disk Image", role: .destructive) {
-                            coordinator.resetDDI()
-                        }.disabled(coordinator.busy)
-                    }
-                } else {
-                    Section {
-                        if StikJITHelper.isAvailable {
-                            Button("Enable JIT with StikDebug") { coordinator.enable() { _ in } }
-                        } else {
-                            Link("Install StikDebug",
-                                 destination: URL(string: "https://github.com/StikDebug/StikDebug/releases/latest")!)
-                        }
-                    } footer: {
-                        Text("StikDebug needs a pairing file and an active LocalDevVPN connection. Madeira sends its own script automatically.")
-                    }
+                    Text("Import this device's pairing file into StikDebug and connect LocalDevVPN. Madeira will use StikDebug only; the in-app pairing and built-in JIT setup are disabled.")
                 }
 
                 if coordinator.busy {
@@ -682,15 +619,5 @@ struct JITSetupView: View {
                 }
             }
         }
-        .fileImporter(isPresented: $importing,
-                      allowedContentTypes: [.propertyList, .data]) { result in
-            if case .success(let url) = result {
-                coordinator.importPairingFile(url)
-            } else if case .failure(let failure) = result {
-                LogStore.shared.log("[jit-built-in] pairing import failed: \(failure.localizedDescription)",
-                                    level: .error)
-            }
-        }
-        .onAppear { coordinator.refreshPairingStatus() }
     }
 }
