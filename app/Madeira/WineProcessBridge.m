@@ -1031,28 +1031,34 @@ static void *wine_process_thread(void *arg) {
          * and this launch publishes the game's own identity instead of the fixed one. Both
          * are cleared here, so no later launch inherits them. */
         const char *dock_session = getenv("MADEIRA_DOCK_SESSION");
-        const char *direct_app = getenv("MADEIRA_STEAM_APPID");    /* set by the library for one direct Steam start (Start with: The game); not a setting */
-        const char *direct_path = getenv("MADEIRA_STEAM_APPPATH"); /* that game's install folder, with MADEIRA_STEAM_APPID; not a setting */
-        if (dock_session && dock_session[0] == '1') {
-            unsetenv("SteamAppPath");
-            unsetenv("SteamGameId");
-            unsetenv("SteamAppId");
-            dprintf(STDERR_FILENO, "[steam-env] Madeira Dock session: no fixed Steam game identity published\n");
-        } else if (direct_app && direct_app[0] && strlen(direct_app) <= 10 &&
-            strspn(direct_app, "0123456789") == strlen(direct_app) &&
-            direct_path && (direct_path[0] == 'C' || direct_path[0] == 'c') && direct_path[1] == ':' &&
-            direct_path[2] == '\\' && strlen(direct_path) < 1024 && !strstr(direct_path, "..")) {
-            setenv("SteamAppPath", direct_path, 1);
-            setenv("SteamGameId", direct_app, 1);
-            setenv("SteamAppId",  direct_app, 1);
-            dprintf(STDERR_FILENO, "[steam-start] direct start: the game's own Steam identity (app %s) published\n", direct_app);
-        } else {
-            setenv("SteamAppPath", "C:\\Program Files\\Thumper", 1);
-            setenv("SteamGameId", "356400", 1);
-            setenv("SteamAppId",  "356400", 1);
-        }
-        unsetenv("MADEIRA_STEAM_APPID");
-        unsetenv("MADEIRA_STEAM_APPPATH");
+         const char *direct_app = getenv("MADEIRA_STEAM_APPID");    /* set by the library for one direct Steam start (Start with: The game); not a setting */
+         const char *direct_path = getenv("MADEIRA_STEAM_APPPATH"); /* that game's install folder, with MADEIRA_STEAM_APPID; not a setting */
++
++        /* Reset identity on every launch: the app and Wine run in one process. */
++        unsetenv("SteamAppPath");
++        unsetenv("SteamGameId");
++        unsetenv("SteamAppId");
+         if (dock_session && dock_session[0] == '1') {
+-            unsetenv("SteamAppPath");
+-            unsetenv("SteamGameId");
+-            unsetenv("SteamAppId");
+-            dprintf(STDERR_FILENO, "[steam-env] Madeira Dock session: no fixed Steam game identity published\n");
++            dprintf(STDERR_FILENO, "[steam-env] Madeira Dock session: Steam identity left to Valve's client\n");
+         } else if (direct_app && direct_app[0] && strlen(direct_app) <= 10 &&
+             strspn(direct_app, "0123456789") == strlen(direct_app) &&
+             direct_path && (direct_path[0] == 'C' || direct_path[0] == 'c') && direct_path[1] == ':' &&
+             direct_path[2] == '\\' && strlen(direct_path) < 1024 && !strstr(direct_path, "..")) {
+             setenv("SteamAppPath", direct_path, 1);
+             setenv("SteamGameId", direct_app, 1);
+             setenv("SteamAppId",  direct_app, 1);
+             dprintf(STDERR_FILENO, "[steam-start] direct start: the game's own Steam identity (app %s) published\n", direct_app);
+         } else {
+-            setenv("SteamAppPath", "C:\\Program Files\\Thumper", 1);
+-            setenv("SteamGameId", "356400", 1);
+-            setenv("SteamAppId",  "356400", 1);
++            /* Don't give an unrelated game Thumper's identity as a fallback. */
++            dprintf(STDERR_FILENO, "[steam-env] no per-game Steam identity; fixed defaults cleared\n");
+         }
 
         /* iOS-Madeira 2026-07-02: publish the TRUE JIT-pool RX->RW offset to
          * xtajit64.dll (its own FEXCore copy reads this via getenv in

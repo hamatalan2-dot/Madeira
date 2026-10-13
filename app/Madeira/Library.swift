@@ -456,6 +456,36 @@ struct LibraryEntry: Codable, Identifiable {
         return relativePath + "/" + program
     }
     var launchWindowsPath: String { "C:\\" + launchRelativePath.replacingOccurrences(of: "/", with: "\\") }
+
+    /// Optional Steamworks identity for a manually added Windows game.
+    /// Only a sidecar beside that exact executable opts the game in; an unrelated
+    /// game never inherits another title's App ID or SteamAppPath. Steam library
+    /// entries use their own `steamAppID` path below, and Dock lets Valve's client
+    /// provide identity for the game it actually starts.
+    private var sidecarSteamIdentity: (appID: String, appPath: String)? {
+        guard steamAppID == nil, desktop != true, !isBatch,
+              launchRelativePath.lowercased().hasSuffix(".exe"),
+              let executable = try? LibraryModel.executable(launchRelativePath) else { return nil }
+
+        let drive = LibraryModel.drive.standardizedFileURL
+        let folder = executable.deletingLastPathComponent().standardizedFileURL
+        guard folder.path.hasPrefix(drive.path + "/") else { return nil }
+
+        let sidecar = folder.appendingPathComponent("steam_appid.txt", isDirectory: false)
+        guard let attributes = try? FileManager.default.attributesOfItem(atPath: sidecar.path),
+              let fileSize = attributes[.size] as? NSNumber,
+              fileSize.intValue > 0, fileSize.intValue <= 64,
+              let contents = try? String(contentsOf: sidecar, encoding: .utf8) else { return nil }
+
+        let appID = contents.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !appID.isEmpty, appID.utf8.count <= 10,
+              appID.utf8.allSatisfy({ $0 >= 48 && $0 <= 57 }),
+              let numericID = Int(appID), numericID > 0 else { return nil }
+
+        let relativeFolder = String(folder.path.dropFirst(drive.path.count + 1))
+        let windowsFolder = "C:\\" + relativeFolder.replacingOccurrences(of: "/", with: "\\")
+        return (appID, windowsFolder)
+    }
     /// "The game"'s working folder as a Windows path, or nil for the program's own folder.
     var steamWorkingWindowsPath: String? {
         guard startsSteamGameDirectly, let folder = steamProgramFolder else { return nil }
@@ -609,10 +639,15 @@ struct LibraryEntry: Codable, Identifiable {
         setenv("MADEIRA_ARGS", command.args, 1)
         if desktop == true || runsInDesktop { setenv("MADEIRA_DESKTOP", "1", 1) } else { unsetenv("MADEIRA_DESKTOP") }
         if startsSteamGameDirectly, let steamAppID {
-            // The game's own Steam identity (SteamAppId, SteamGameId, SteamAppPath = its install
-            // folder) instead of the bridge's fixed one.
+            // Steam library entry: hand the bridge this entry's identity only.
             setenv("MADEIRA_STEAM_APPID", String(steamAppID), 1)
             setenv("MADEIRA_STEAM_APPPATH", windowsPath, 1)
+        } else if let identity = sidecarSteamIdentity {
+            // Manually added Steamworks game: identity is opt-in and local to this
+            // executable's folder through steam_appid.txt; no hard-coded title ID.
+            setenv("MADEIRA_STEAM_APPID", identity.appID, 1)
+            setenv("MADEIRA_STEAM_APPPATH", identity.appPath, 1)
+            fputs("[steam-env] sidecar identity selected app=\(identity.appID)\n", stderr)
         }
         // ml1163: a game starts in launchDirectory (a chosen folder, Steam's for "The game",
         // else the program's own). It is exported when the bridge's default, the folder of
