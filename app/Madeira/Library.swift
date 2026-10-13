@@ -148,6 +148,41 @@ enum FrontendChoice {
     }
 }
 
+
+
+
+
+/// Conservative, opt-in performance preset for iPhone 13 Pro Max.
+enum DevicePerformanceProfile {
+    static let summary =
+        "Uses a lower render resolution and targets 30 FPS to reduce GPU work and heat."
+
+    static var isAvailable: Bool {
+        var system = utsname()
+        uname(&system)
+
+        return withUnsafePointer(to: &system.machine) {
+            $0.withMemoryRebound(
+                to: CChar.self,
+                capacity: MemoryLayout.size(ofValue: system.machine)
+            ) {
+                String(cString: $0)
+            }
+        } == "iPhone14,3"
+    }
+
+    static func apply(to entry: inout LibraryEntry) {
+        let light = ResolutionChoices.shape(
+            ResolutionChoices.screen,
+            pixels: ResolutionChoices.budgets[0].pixels
+        )
+
+        entry.resolution = "\(light.w)x\(light.h)"
+        entry.fpsMode = 3
+    }
+}
+
+
 /// One game in the library and its launch profile, stored in
 /// Documents/madeira-library.json (version 1). New fields must be optional so
 /// older files keep decoding; unknown keys are ignored.
@@ -2802,6 +2837,56 @@ struct LibraryDetail: View {
                     SteamCloudSection(appID: appID)
                     SteamEntrySection(entry: $entry) { leaving = true; dismiss() }
                 }
+                
+
+
+
+                
+if entry.desktop != true,
+   entry.bits == 64,
+   entry.steamAppID == nil,
+   entry.epicAppName == nil,
+   DevicePerformanceProfile.isAvailable {
+
+    Section {
+        LabeledContent(
+            "Device",
+            value: "iPhone 13 Pro Max (A15)"
+        )
+
+        Text(DevicePerformanceProfile.summary)
+            .font(.footnote)
+            .foregroundStyle(.secondary)
+
+        Button("Apply A15 Balanced") {
+            var updated = entry
+            DevicePerformanceProfile.apply(to: &updated)
+            entry = updated
+            model.save(updated)
+        }
+    } header: {
+        Text("Performance profile")
+    } footer: {
+        Text(
+            "Changes only this game's resolution and frame-rate target. You can adjust either setting below."
+        )
+    }
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+                
                 Section {
                     // The Windows screen the game renders for (and the Desktop's size).
                     // ml1172: this device's choices (ResolutionChoices), grouped.
