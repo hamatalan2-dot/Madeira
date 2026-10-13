@@ -148,6 +148,55 @@ enum FrontendChoice {
     }
 }
 
+/// A conservative launch profile for devices whose thermal and memory headroom
+/// is known.  A profile changes only entries created on that device; it never
+/// silently changes an existing game's settings.
+enum DevicePerformanceProfile: String {
+    case a15Balanced = "a15-balanced"
+
+    /// iPhone 13 Pro Max.  Do not infer this from the screen size: several
+    /// devices share its screen shape but have very different GPU budgets.
+    static var defaultForCurrentDevice: DevicePerformanceProfile? {
+        hardwareIdentifier == "iPhone14,3" ? .a15Balanced : nil
+    }
+
+    static var hardwareIdentifier: String {
+        var system = utsname()
+        uname(&system)
+        return withUnsafePointer(to: &system.machine) {
+            $0.withMemoryRebound(to: CChar.self, capacity: MemoryLayout.size(ofValue: system.machine)) {
+                String(cString: $0)
+            }
+        }
+    }
+
+    var label: String {
+        switch self {
+        case .a15Balanced: return "A15 Balanced"
+        }
+    }
+
+    var summary: String {
+        switch self {
+        case .a15Balanced:
+            return "Light screen-shaped resolution and a 30 FPS cap for steadier performance and lower heat (60 FPS if this DXMT build has no 30 FPS cap)."
+        }
+    }
+
+    /// Values here must be broadly safe.  Compatibility switches and graphics
+    /// workarounds stay at their proven defaults until a game needs them.
+    func apply(to entry: inout LibraryEntry) {
+        switch self {
+        case .a15Balanced:
+            let light = ResolutionChoices.shape(ResolutionChoices.screen,
+                                                pixels: ResolutionChoices.budgets[0].pixels)
+            entry.resolution = "\(light.w)x\(light.h)"
+            entry.fpsMode = 3 // 30 FPS; falls back to 60 on an older DXMT without a 30 FPS cap.
+            entry.performanceProfile = rawValue
+        }
+    }
+}
+
 /// One game in the library and its launch profile, stored in
 /// Documents/madeira-library.json (version 1). New fields must be optional so
 /// older files keep decoding; unknown keys are ignored.
@@ -175,6 +224,10 @@ struct LibraryEntry: Codable, Identifiable {
     var display: String?
     /// FPS limit: 1 = 60, 3 = 30, 4 = 40, 0 = display maximum, 2 = uncapped (madeira_set_vsync_locked).
     var fpsMode = 1
+    /// The device profile applied when this entry was created.  It is a label
+    /// and a reset action, not a runtime override, so a player's later choices
+    /// remain their own.
+    var performanceProfile: String?
     /// FEX's X87ReducedPrecision for this game. Off by default, as in FEX; only
     /// an explicit choice exports FEX_X87REDUCEDPRECISION=1.
     var reducedX87 = false
@@ -284,6 +337,17 @@ struct LibraryEntry: Codable, Identifiable {
     /// Madeira starts its own program in Wine like any library game, and
     /// `relativePath` is its install folder, relative to drive_c.
     var epicAppName: String?
+
+    /// Entries are unmodified unless their creation path explicitly opts into
+    /// a device profile.  Store launchers and desktop sessions are not games.
+    init(title: String, relativePath: String, bits: Int, applyDeviceProfile: Bool = false) {
+        self.title = title
+        self.relativePath = relativePath
+        self.bits = bits
+        if applyDeviceProfile, let profile = DevicePerformanceProfile.defaultForCurrentDevice {
+            profile.apply(to: &self)
+        }
+    }
 
     /// What MadeiraConfig.applyGame writes for this game: the lines its pickers
     /// stand for, then its own config, which wins where both set a key.
@@ -914,7 +978,7 @@ final class LibraryModel: ObservableObject {
             // warns that Wine then stops when cmd.exe, its first process, exits.
             let relative = String(url.resolvingSymlinksInPath().path.dropFirst(drive.path.count + 1))
             return LibraryEntry(title: url.deletingPathExtension().lastPathComponent.replacingOccurrences(of: "_", with: " "),
-                                relativePath: relative, bits: 0)
+                                relativePath: relative, bits: 0, applyDeviceProfile: true)
         }
         let h = try FileHandle(forReadingFrom: url); defer { try? h.close() }
         let dos = try h.read(upToCount: 64) ?? Data()
@@ -928,7 +992,8 @@ final class LibraryModel: ObservableObject {
         guard machine == 0x14c || machine == 0x8664 else { throw LibraryError.message("Only x86 and x64 executables are supported.") }
         let relative = String(url.resolvingSymlinksInPath().path.dropFirst(drive.path.count + 1))
         let name = url.deletingPathExtension().lastPathComponent.replacingOccurrences(of: "_", with: " ")
-        var entry = LibraryEntry(title: name, relativePath: relative, bits: machine == 0x14c ? 32 : 64)
+        var entry = LibraryEntry(title: name, relativePath: relative, bits: machine == 0x14c ? 32 : 64,
+                                 applyDeviceProfile: true)
         entry.graphicsAPI = graphicsImports(url)
         return entry
     }
@@ -3018,6 +3083,24 @@ struct LibraryDetail: View {
                 if let appID = entry.steamAppID {
                     SteamCloudSection(appID: appID)
                     SteamEntrySection(entry: $entry) { leaving = true; dismiss() }
+                }
+                // The A15 preset is intentionally for manually added offline
+                // Windows games only; store entries keep their own launch paths.
+                if entry.desktop != true, entry.steamAppID == nil, entry.epicAppName == nil,
+                   let profile = DevicePerformanceProfile.defaultForCurrentDevice {
+                    Section("Performance profile") {
+                        LabeledContent("Default for this iPhone", value: profile.label)
+                        if entry.performanceProfile == profile.rawValue {
+                            Label("Applied to this game", systemImage: "checkmark.circle.fill")
+                                .foregroundStyle(.green)
+                        } else {
+                            Text("This game keeps its existing display settings.")
+                                .font(.caption).foregroundStyle(.secondary)
+                        }
+                        Button("Apply \(profile.label)") { profile.apply(to: &entry) }
+                    } footer: {
+                        Text(profile.summary + " Applying it resets only this game's resolution and FPS limit; compatibility and graphics options are unchanged.")
+                    }
                 }
                 Section {
                     // The Windows screen the game renders for (and the Desktop's size).
