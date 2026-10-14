@@ -1184,6 +1184,7 @@ static void *wine_process_thread(void *arg) {
                     "MADEIRA_FEX_AVX",           /* ml1184: the game's "AVX and AVX2" */
                     "MADEIRA_FRAMEGEN",          /* ml1184: the game's "Frame generation" */
                     "DXMT_ENABLE_NVEXT", "DXMT_WSI_MONITOR_IDENTITY", "DXMT_WSI_MODE_TABLE",   /* the game's "Report an NVIDIA GPU" */
+                    "MADEIRA_WAIT_CHILDREN",   /* Unity (and similar) launchers that start a child and exit */
                 };
                 enum { per_launch_count = sizeof(per_launch) / sizeof(per_launch[0]) };
                 BOOL game_set[per_launch_count];
@@ -1700,6 +1701,7 @@ static void *wine_process_thread(void *arg) {
         unsetenv("MADEIRA_DINPUT_PAD");        /* ml1240 */
         unsetenv("MADEIRA_FEX_AVX"); unsetenv("MADEIRA_FRAMEGEN");   /* ml1184 */
         unsetenv("DXMT_ENABLE_NVEXT"); unsetenv("DXMT_WSI_MONITOR_IDENTITY"); unsetenv("DXMT_WSI_MODE_TABLE");
+        unsetenv("MADEIRA_WAIT_CHILDREN");   /* Unity launcher wait, ml1184 */
 
         // Stop wineserver to prevent CPU spin (iOS kills for excessive CPU)
         dprintf(STDERR_FILENO, "[WineProc] stopping wineserver...\n");

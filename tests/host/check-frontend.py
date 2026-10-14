@@ -182,7 +182,8 @@ expect(!game.reducedX87, "reduced-precision x87 is off for new entries")
 setenv("FEX_X87REDUCEDPRECISION", "1", 1)
 game.applyEnvironment()
 expect(env("FEX_X87REDUCEDPRECISION") == nil, "x87: nothing exported unless chosen")
-expect(env("MADEIRA_CPU_COUNT") == nil && env("DXMT_D9_ANISO_LIMIT") == nil, "no other engine switches are exported")
+expect(env("MADEIRA_CPU_COUNT") == nil && env("DXMT_D9_ANISO_LIMIT") == nil && env("MADEIRA_WAIT_CHILDREN") == nil,
+       "no other engine switches are exported (WAIT_CHILDREN only when the install looks like Unity)")
 expect(env("MADEIRA_FASTSYNC") == "auto" && env("MADEIRA_FASTSYNC_SEM") == nil,
        "no sync keys (Fastsync, the default): fastsync exported, semaphore waits left to madeira.cfg")
 expect(LogStore.shared.lines.last == "[display-shape] resolution=1280x720 mode=fit", "the profile's display shape is logged")
@@ -413,6 +414,21 @@ expect(RC.extra("1408x648", in: ig, note: "saved")?.label == "1408×648 · saved
 expect(RC.metalFX(for: ipad, in: ig)?.label == "688×480 · for MetalFX 1.5×" && RC.metalFX(for: ipad13, in: g13) == nil
        && RC.metalFX(for: phone16, in: RC.groups(for: phone16))?.value == "1040x480",
        "MetalFX 1.5×: the screen's shape at 480 lines, not repeated where 4:3 already has 640x480")
+expect(!DevicePlayProfile.memoryConstrained, "host tests are not treated as 6 GB iPhones")
+expect(GameEnginePreset.unityArguments("", resolution: "1168x536") == "-force-d3d11 -windowed -popupwindow -screen-width 1168 -screen-height 536",
+       "Unity: D3D11 in a window at the virtual monitor size")
+expect(GameEnginePreset.unityArguments("-dx12 -fullscreen", resolution: "1280x720") == "-dx12 -fullscreen -popupwindow",
+       "Unity: an explicit renderer or fullscreen is left alone")
+expect(GameEnginePreset.isCrashHandler(URL(fileURLWithPath: "/tmp/UnityCrashHandler64.exe")), "UnityCrashHandler64.exe is not the game")
+let unityDir = FileManager.default.temporaryDirectory.appendingPathComponent("madeira-unity-\(UUID().uuidString)")
+try! FileManager.default.createDirectory(at: unityDir, withIntermediateDirectories: true)
+try! Data().write(to: unityDir.appendingPathComponent("UnityPlayer.dll"))
+expect(GameEnginePreset.isUnity(at: unityDir.appendingPathComponent("Game.exe")), "UnityPlayer.dll next to the exe is a Unity install")
+try? FileManager.default.removeItem(at: unityDir)
+game.applyPlayDefaults(forcePhone: true)
+expect(game.metalFXUpscale == 1.5 && game.fpsMode == 3 && game.cpuCount == 4 && game.anisotropyLimit == 2,
+       "Optimize for this iPhone: light GPU profile")
+game.metalFXUpscale = nil; game.fpsMode = 1; game.cpuCount = nil; game.anisotropyLimit = nil
 
 // Controller navigation.
 let c = LibraryController.shared
@@ -596,6 +612,12 @@ check('Text(entry.commandPreview)' in detail and 'lastPathComponent] + (entry.ar
 check('programExtensions: Set<String> = ["exe", "bat", "cmd"]' in model
       and 'LibraryModel.programExtensions.contains(' in block(lib, 'struct ExecutableBrowser: View'),
       'the executable picker and the launch check accept .bat and .cmd')
+check('GameEnginePreset.isCrashHandler(url)' in model and 'applyPlayDefaults()' in model,
+      'adding a game skips UnityCrashHandler and applies phone/Unity play defaults')
+check('Button("Optimize for this iPhone")' in detail and 'applyPlayDefaults(forcePhone: true)' in detail,
+      'game details: Optimize for this iPhone')
+check('"-force-d3d11"' in lib and 'Unity: Madeira adds -force-d3d11' in detail,
+      'Unity installs get Direct3D 11 launch flags')
 check('GameSurfaceLayout.rect(' in content and 'GameSurfaceLayout.map(' in content and 'effectiveDisplayMode()' in content
       and '* 1024 / r.width' not in content, 'the game view lays out and maps touches through GameSurfaceLayout')
 check('if touchPointerMode { touchModeBegan(touches); return }' in content, 'the game view handles the Touch pointer mode')

@@ -20,6 +20,11 @@ and x64 PE executables and batch files inside drive_c can be added; the library
 stores the path relative to drive_c, so a changed app container path does not
 break entries. Adding an entry installs nothing. A batch file gets a **Batch**
 badge and, like every entry, starts directly by default (see **Launch** below).
+UnityCrashHandler*.exe is refused: pick the game's .exe next to `UnityPlayer.dll`
+or the `*_Data` folder. On a 6 GB iPhone (13 Pro Max and similar), a newly added
+game starts with the light resolution, MetalFX 1.5×, a 30 FPS cap, four CPU cores
+and 2× anisotropic filtering; **Optimize for this iPhone** on the details page
+does the same for a game already in the library.
 
 The library reads the executable's PE imports (and those of the DLLs next to
 it, plus bounded scans for dynamically loaded renderer DLL names) to show a
@@ -75,7 +80,9 @@ Removing an entry never removes the game's files or saves.
   (StikDebug or the built-in helper), extended logging, pointer
   mode (Absolute, Relative or Touch) and touch sensitivity, **Display** (hold
   the display at its maximum rate, off by default), **Memory & sync** (swap tier
-  Off/1/2/4 GB, off by default; sync engine, Fastsync by default), the interface
+  Off/1/2/4 GB, off by default except on a 6 GB iPhone, where the first launch
+  fills an unset 2 GB broad swap tier and 1.5 GB video memory; sync engine,
+  Fastsync by default), the interface
   switch and **Credits** (the last section). Display applies from the next session or FPS limit change; Memory &
   sync after a restart. They write `env.MADEIRA_PROMOTE`, `swap-mb`,
   `env.MADEIRA_SWAP_COVERAGE`, `inproc-sync` and `env.MADEIRA_FASTSYNC` in
@@ -165,11 +172,19 @@ and check-frontend fails if a setting is hidden from it. A profile holds:
 - launch arguments (double-quoted tokens, at most 64 and 4 KB in total, the
   whole command included; not for Steam games, which start with Steam's own
   launch option, through Madeira Dock or as **The game**), in their own section
-  with chips for common flags (`-dx11`, `-dx12`, `-dx10`, `-dx9`, `-windowed`,
-  `-fullscreen`, `-nosplash`; the renderer flags exclude each other, as do the
+  with chips for common flags (`-dx11`, `-dx12`, `-dx10`, `-dx9`, `-force-d3d11`,
+  `-windowed`, `-fullscreen`, `-nosplash`; the renderer flags exclude each other, as do the
   window flags) and the command line the next start runs (with a **Launch**
   choice above, what starts the program: explorer.exe or cmd.exe with its
-  whole command);
+  whole command). A Unity install (UnityPlayer.dll, GameAssembly.dll or a
+  `*_Data` folder next to the .exe) is started with `-force-d3d11`, `-windowed`,
+  `-popupwindow` and `-screen-width`/`-screen-height` matching Resolution,
+  unless those flags are already set; UnityCrashHandler*.exe cannot be added.
+  **Optimize for this iPhone** (Compatibility & performance) sets the light
+  resolution, MetalFX 1.5×, a 30 FPS cap, four CPU cores and 2× anisotropic
+  filtering. On a 6 GB iPhone, new games take that profile when added, and
+  the first launch fills an unset swap tier (2 GB, broad) and video memory
+  (1.5 GB);
 - performance overlay, live logs and touch controls for the session, with the
   controls' **opacity** and overall **size**. The touch layout itself is saved
   per game from the in-game editor;

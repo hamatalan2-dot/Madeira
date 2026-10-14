@@ -349,7 +349,11 @@ struct LibraryEntry: Codable, Identifiable {
     var runsInDesktop: Bool { usesLaunchOptions && launchMode == "desktop" }
     /// The program's own arguments: Steam's launch configuration for "The game",
     /// else the entry's Launch arguments.
-    var programArguments: String { startsSteamGameDirectly ? (steamProgramArguments ?? "") : arguments }
+    var programArguments: String {
+        let base = startsSteamGameDirectly ? (steamProgramArguments ?? "") : arguments
+        guard GameEnginePreset.isUnity(relativePath: launchRelativePath) else { return base }
+        return GameEnginePreset.unityArguments(base, resolution: resolution)
+    }
     /// ml1163: the directory the program starts in (MADEIRA_WORKDIR): the chosen
     /// working folder, else Steam's for "The game", else the program's own folder.
     /// A desktop-mode game inherits explorer's directory and a .bat runs as
@@ -560,6 +564,10 @@ struct LibraryEntry: Codable, Identifiable {
         configureLaunch()
         // Unset unless chosen: FEX's own default then applies, as for any other launch.
         if reducedX87 { setenv("FEX_X87REDUCEDPRECISION", "1", 1) } else { unsetenv("FEX_X87REDUCEDPRECISION") }
+        // Unity launchers often start the real player and exit; keep the session
+        // for that child. Unset for other games so madeira.cfg can still opt in.
+        if GameEnginePreset.isUnity(relativePath: launchRelativePath) { setenv("MADEIRA_WAIT_CHILDREN", "1", 1) }
+        else { unsetenv("MADEIRA_WAIT_CHILDREN") }
         // Exported only when chosen: unset keeps the engine's own default (and any
         // madeira.cfg setting), as before these choices existed.
         // Unset otherwise, so a previous game's choice (a launch that died before the
@@ -661,6 +669,23 @@ struct LibraryEntry: Codable, Identifiable {
         // same size as its /desktop= argument.
         GuestDisplay.configureSessionDefault(view: CGSize(width: 1280, height: 720), knob: resolution)
     }
+
+    /// New games added from drive_c, and the details-page "Optimize for this iPhone"
+    /// button: fewer pixels, MetalFX, a 30 FPS cap when DXMT has one, four cores.
+    mutating func applyPlayDefaults(forcePhone: Bool = false) {
+        let phone = forcePhone || DevicePlayProfile.memoryConstrained
+        if phone {
+            resolution = ResolutionChoices.lightValue
+            metalFXUpscale = 1.5
+            fpsMode = 3
+            cpuCount = 4
+            anisotropyLimit = 2
+            frameGeneration = nil
+        }
+        if GameEnginePreset.isUnity(relativePath: relativePath) {
+            reportNVIDIA = true
+        }
+    }
 }
 
 final class LibraryModel: ObservableObject {
@@ -749,6 +774,7 @@ final class LibraryModel: ObservableObject {
             }
         }
         resetPhoneResolution()
+        DevicePlayProfile.applyMemoryDefaultsIfNeeded()
     }
 
     /// ml1172: every new entry used to get 1408x648, a 19.5:9 phone's shape.
@@ -920,13 +946,18 @@ final class LibraryModel: ObservableObject {
         guard url.resolvingSymlinksInPath().path.hasPrefix(drive.path + "/") else {
             throw LibraryError.message("The executable must be inside drive_c.")
         }
+        if GameEnginePreset.isCrashHandler(url) {
+            throw LibraryError.message("That is Unity's crash reporter, not the game. Choose the game's .exe in the same folder as UnityPlayer.dll (or the *_Data folder).")
+        }
         if ["bat", "cmd"].contains(url.pathExtension.lowercased()) {
             // ml1163: a batch file has no PE header. Like every entry it starts
             // directly by default, as upstream starts every game; the details page
             // warns that Wine then stops when cmd.exe, its first process, exits.
             let relative = String(url.resolvingSymlinksInPath().path.dropFirst(drive.path.count + 1))
-            return LibraryEntry(title: url.deletingPathExtension().lastPathComponent.replacingOccurrences(of: "_", with: " "),
+            var entry = LibraryEntry(title: url.deletingPathExtension().lastPathComponent.replacingOccurrences(of: "_", with: " "),
                                 relativePath: relative, bits: 0)
+            entry.applyPlayDefaults()
+            return entry
         }
         let h = try FileHandle(forReadingFrom: url); defer { try? h.close() }
         let dos = try h.read(upToCount: 64) ?? Data()
@@ -942,6 +973,7 @@ final class LibraryModel: ObservableObject {
         let name = url.deletingPathExtension().lastPathComponent.replacingOccurrences(of: "_", with: " ")
         var entry = LibraryEntry(title: name, relativePath: relative, bits: machine == 0x14c ? 32 : 64)
         entry.graphicsAPI = graphicsImports(url)
+        entry.applyPlayDefaults()
         return entry
     }
 
@@ -2992,6 +3024,9 @@ struct LibraryDetail: View {
                             .font(.caption.monospaced()).foregroundStyle(.secondary).textSelection(.enabled)
                     } header: { Text("Launch arguments") } footer: {
                         Text("Passed to the program on every start; the line above is the command that runs. The flags add or remove themselves; the renderer flags exclude each other, as do -windowed and -fullscreen.")
+                        if GameEnginePreset.isUnity(relativePath: entry.launchRelativePath) {
+                            Text("Unity: Madeira adds -force-d3d11, a window, and -screen-width/-screen-height to match Resolution, unless you already set a renderer or those flags. Put steam_appid.txt next to the .exe if the game needs a Steam App ID without Steam.")
+                        }
                     }
                 }
                 Section {
@@ -3008,6 +3043,9 @@ struct LibraryDetail: View {
                         ForEach([1, 2, 4, 8], id: \.self) { Text("Up to \($0)×").tag($0) }
                     }
                     Toggle("Report an NVIDIA GPU", isOn: Binding(get: { entry.reportNVIDIA ?? false }, set: { entry.reportNVIDIA = $0 ? true : nil }))
+                    Button("Optimize for this iPhone") {
+                        entry.applyPlayDefaults(forcePhone: true)
+                    }
                     // Fastsync-only switches: shown for every game, usable only while
                     // Settings › Sync engine is Fastsync.
                     Group {
@@ -3022,6 +3060,7 @@ struct LibraryDetail: View {
                     }
                 } header: { Text("Compatibility & performance") } footer: {
                     Text("Reduced-precision x87 can make older games faster at some cost in accuracy; it is off by default. Turn on AVX and AVX2 (off by default, 64-bit games) when a game built for AVX processors quits at start with an illegal instruction (c000001d); FEX then emulates AVX, which is slower. Report an NVIDIA GPU is for games that stop with \"no graphics card\" or \"failed to get GPU driver info\". With Fastsync, fast synchronization (on by default) handles events without a server round trip, and fast semaphore waits (off by default) does the same for semaphores. Settings apply to the next launch; a precision change may still require restarting Madeira.")
+                    Text("Optimize for this iPhone uses the light resolution, MetalFX 1.5×, a 30 FPS cap, four CPU cores and 2× anisotropic filtering, so the game costs less on a 6 GB phone such as iPhone 13 Pro Max. Unity installs also get Direct3D 11 in a window at that size.")
                 }
                 Section("On screen") {
                     Toggle("Performance overlay", isOn: $entry.performance)
@@ -3375,7 +3414,7 @@ struct ControllerModeChoice: View {
 /// other, as do -windowed and -fullscreen. Quoted arguments are kept whole.
 struct LaunchFlagChips: View {
     @Binding var arguments: String
-    static let flags = ["-dx11", "-dx12", "-dx10", "-dx9", "-windowed", "-fullscreen", "-nosplash"]
+    static let flags = ["-dx11", "-dx12", "-dx10", "-dx9", "-force-d3d11", "-windowed", "-fullscreen", "-nosplash"]
 
     /// The arguments split at unquoted spaces and tabs, quotes kept.
     static func tokens(_ text: String) -> [String] {
@@ -3399,7 +3438,7 @@ struct LaunchFlagChips: View {
         if contains(text, flag) {
             parts.removeAll { $0.caseInsensitiveCompare(flag) == .orderedSame }
         } else {
-            let renderers = ["-dx9", "-dx10", "-dx11", "-dx12"]
+            let renderers = ["-dx9", "-dx10", "-dx11", "-dx12", "-force-d3d11"]
             if renderers.contains(flag) { parts.removeAll { renderers.contains($0.lowercased()) } }
             if flag == "-windowed" { parts.removeAll { $0.lowercased() == "-fullscreen" } }
             if flag == "-fullscreen" { parts.removeAll { $0.lowercased() == "-windowed" } }
@@ -3613,6 +3652,7 @@ struct RuntimeMemorySyncSettings: View {
                 Text("Swap tier moves game data to a file on this device's storage when memory runs short, up to the chosen size, at some speed cost. Coverage decides which allocations it moves: large ones only (8 MB and up, the default), every allocation of 1 MB and up, or those plus allocations that overflow the game's address range. Broad backs every new reservation of 4 MB and up (madeira.cfg swap-min-mb moves the floor) as it is made, so the small commits games make inside it are covered too, and the swap tier size limits the storage it uses. Wider coverage saves more memory but can slow a game down.")
                 Text("Sync engine: Fastsync (the default) handles events and semaphores in-process; its per-game options are in each game's details. Madsync is the older in-process engine. Wine standard sync uses neither. Only one engine runs at a time.")
                 Text("Eco mode starts every game with its threads at a low priority, which saves power but makes games run slower. Off by default. It is meant for loading screens: Eco mode in the in-game menu turns it on and off while a game runs.")
+                Text("On a 6 GB iPhone (13 Pro Max and similar), the first launch fills an unset swap tier (2 GB, broad coverage) and video memory (1.5 GB) so PC games are less likely to be killed for using too much memory. Settings you already chose are left alone.")
                 if changed { Text("Restart Madeira (close it from the app switcher) for these changes to apply.").foregroundStyle(.orange) }
             }
         }

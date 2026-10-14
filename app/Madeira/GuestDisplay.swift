@@ -219,8 +219,12 @@ enum ResolutionChoices {
         h > 0 && abs(Double(w) / Double(h) / aspect(s) - 1) < 0.015
     }
 
-    static func defaultSize(for s: Screen = screen) -> (w: Int, h: Int) { shape(s, pixels: budgets[defaultBudget].pixels) }
+    static func defaultSize(for s: Screen = screen) -> (w: Int, h: Int) { shape(s, pixels: budgets[preferredBudget].pixels) }
     static var defaultValue: String { let d = defaultSize(); return "\(d.w)x\(d.h)" }
+    /// This screen's shape at the light pixel budget (for 6 GB phones).
+    static var lightValue: String { let d = shape(screen, pixels: budgets[0].pixels); return "\(d.w)x\(d.h)" }
+    /// 720p-class budget on 8 GB+ devices; light on ~6 GB iPhones (iPhone 13 Pro Max).
+    static var preferredBudget: Int { DevicePlayProfile.memoryConstrained ? 0 : defaultBudget }
 
     static func groups(for s: Screen = screen) -> [Group] {
         let native = (w: Int(s.pixels.width), h: Int(s.pixels.height))
@@ -264,5 +268,112 @@ enum ResolutionChoices {
         let p = value.lowercased().split(separator: "x").compactMap { Int($0.trimmingCharacters(in: .whitespaces)) }
         guard p.count == 2, !groups.contains(where: { $0.choices.contains { $0.w == p[0] && $0.h == p[1] } }) else { return nil }
         return Choice(w: p[0], h: p[1], label: "\(p[0])×\(p[1]) · \(note)")
+    }
+}
+
+/// Play defaults for this device. ~6 GB phones (iPhone 13 / 14 Pro Max) render
+/// fewer pixels and get a swap tier so Unity and other PC games stay under Jetsam.
+enum DevicePlayProfile {
+    static let memoryCeilingBytes: UInt64 = 7 * 1024 * 1024 * 1024
+    /// Host tests and Mac builds keep the 720p library default.
+    static var memoryConstrained: Bool {
+        #if os(iOS)
+        ProcessInfo.processInfo.physicalMemory < memoryCeilingBytes
+        #else
+        false
+        #endif
+    }
+
+    /// Fills only unset madeira.cfg keys, once per install, so a user's own
+    /// Memory & sync choices are never overwritten.
+    static func applyMemoryDefaultsIfNeeded() {
+        let key = "madeira.device-play.memory-v1"
+        guard memoryConstrained, !UserDefaults.standard.bool(forKey: key) else { return }
+        if MadeiraConfig.get("swap-mb") == nil {
+            MadeiraConfig.set("swap-mb", "2048")
+            if MadeiraConfig.get("env.MADEIRA_SWAP_COVERAGE") == nil {
+                MadeiraConfig.set("env.MADEIRA_SWAP_COVERAGE", "broad")
+            }
+        }
+        if MadeiraConfig.get("vram-mb") == nil {
+            MadeiraConfig.set("vram-mb", "1536")
+        }
+        UserDefaults.standard.set(true, forKey: key)
+        LogStore.shared.log("[device-play] 6GB-class defaults swap-mb=2048 coverage=broad vram-mb=1536")
+    }
+}
+
+/// Unity (and similar) installs added from drive_c, without Steam.
+enum GameEnginePreset {
+    static func isCrashHandler(_ url: URL) -> Bool {
+        url.deletingPathExtension().lastPathComponent.lowercased().hasPrefix("unitycrashhandler")
+    }
+
+    static func isUnity(at executable: URL) -> Bool {
+        isUnityFolder(executable.deletingLastPathComponent(), stem: executable.deletingPathExtension().lastPathComponent)
+    }
+
+    static func isUnity(relativePath: String) -> Bool {
+        let url = LibraryEntry.hostDrive.appendingPathComponent(relativePath)
+        var isDir: ObjCBool = false
+        guard FileManager.default.fileExists(atPath: url.path, isDirectory: &isDir) else { return false }
+        if isDir.boolValue { return isUnityFolder(url, stem: nil) }
+        return isUnity(at: url)
+    }
+
+    static func isUnityFolder(_ folder: URL, stem: String?) -> Bool {
+        let fm = FileManager.default
+        if fm.fileExists(atPath: folder.appendingPathComponent("UnityPlayer.dll").path) { return true }
+        if fm.fileExists(atPath: folder.appendingPathComponent("GameAssembly.dll").path) { return true }
+        for name in ["UnityCrashHandler64.exe", "UnityCrashHandler32.exe", "UnityCrashHandler.exe"] {
+            if fm.fileExists(atPath: folder.appendingPathComponent(name).path) { return true }
+        }
+        if let stem {
+            var isDir: ObjCBool = false
+            let data = folder.appendingPathComponent("\(stem)_Data")
+            if fm.fileExists(atPath: data.path, isDirectory: &isDir), isDir.boolValue { return true }
+        }
+        if let items = try? fm.contentsOfDirectory(at: folder, includingPropertiesForKeys: [.isDirectoryKey], options: [.skipsHiddenFiles]) {
+            if items.contains(where: { $0.lastPathComponent.hasSuffix("_Data") && ((try? $0.resourceValues(forKeys: [.isDirectoryKey]).isDirectory) ?? false) }) {
+                return true
+            }
+        }
+        return false
+    }
+
+    /// DirectX 11 in a window at the virtual monitor size: DXMT's usual path,
+    /// and Unity's exclusive fullscreen often fails to find a mode.
+    static func unityArguments(_ existing: String, resolution: String) -> String {
+        var parts = tokens(existing)
+        let lower = Set(parts.map { $0.lowercased() })
+        func has(_ names: String...) -> Bool { names.contains { lower.contains($0) } }
+        if !has("-force-d3d11", "-force-d3d12", "-force-d3d9", "-dx11", "-dx12", "-dx10", "-dx9", "-force-vulkan", "-force-glcore") {
+            parts.append("-force-d3d11")
+        }
+        if !has("-windowed", "-fullscreen") {
+            parts.append("-windowed")
+        }
+        if !has("-popupwindow") {
+            parts.append("-popupwindow")
+        }
+        let size = resolution.lowercased().split(separator: "x").compactMap { Int($0) }
+        if size.count == 2, !has("-screen-width") {
+            parts.append(contentsOf: ["-screen-width", String(size[0]), "-screen-height", String(size[1])])
+        }
+        return parts.joined(separator: " ")
+    }
+
+    static func tokens(_ text: String) -> [String] {
+        var out: [String] = [], current = "", quoted = false
+        for character in text {
+            if character == "\"" { quoted.toggle() }
+            if !quoted && (character == " " || character == "\t") {
+                if !current.isEmpty { out.append(current); current = "" }
+            } else {
+                current.append(character)
+            }
+        }
+        if !current.isEmpty { out.append(current) }
+        return out
     }
 }
