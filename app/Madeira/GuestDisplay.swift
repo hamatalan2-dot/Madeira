@@ -506,17 +506,27 @@ enum GameEnginePreset {
         return String(path.dropFirst(drive.count + 1))
     }
 
-    static func preferredLaunchRelativePath(from relativePath: String) -> String? {
-        let url = LibraryEntry.hostDrive.appendingPathComponent(relativePath)
-        guard FileManager.default.fileExists(atPath: url.path) else { return nil }
-        if isEpicAuthLauncher(url.lastPathComponent) { return nil }
-        if let epic = epicAuthLauncher(from: url), let relative = relativePath(of: epic),
-           relative.caseInsensitiveCompare(relativePath) != .orderedSame {
-            return relative
-        }
-        guard let shipping = shippingExecutable(from: url), let relative = relativePath(of: shipping) else { return nil }
-        if relative.caseInsensitiveCompare(relativePath) == .orderedSame { return nil }
+    static func preferredLaunchRelativePath(from launchRelativePath: String) -> String? {
+     let url = LibraryEntry.hostDrive.appendingPathComponent(launchRelativePath)
+     guard FileManager.default.fileExists(atPath: url.path) else { return nil }
+     if isEpicAuthLauncher(url.lastPathComponent) { return nil }
+
+     if let epic = epicAuthLauncher(from: url),
+       let relative = relativePath(of: epic),
+       relative.caseInsensitiveCompare(launchRelativePath) != .orderedSame {
         return relative
+     }
+
+     guard let shipping = shippingExecutable(from: url),
+          let relative = relativePath(of: shipping) else {
+        return nil
+     }
+
+     if relative.caseInsensitiveCompare(launchRelativePath) == .orderedSame {
+        return nil
+     }
+
+     return relative
     }
 
     /// `...\Project\Binaries\Win64` -> `...\Project\Binaries` (Windrose: "Launch game from R5/Binaries").
