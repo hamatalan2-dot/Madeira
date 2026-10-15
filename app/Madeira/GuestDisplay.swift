@@ -482,6 +482,15 @@ enum GameEnginePreset {
         return relative
     }
 
+    /// `...\Project\Binaries\Win64` -> `...\Project\Binaries` (Windrose: "Launch game from R5/Binaries").
+    static func binariesWorkingDirectory(windowsFolder: String) -> String? {
+        let parts = windowsFolder.split(separator: "\\").map(String.init)
+        guard parts.count >= 2,
+              parts[parts.count - 1].caseInsensitiveCompare("Win64") == .orderedSame,
+              parts[parts.count - 2].caseInsensitiveCompare("Binaries") == .orderedSame else { return nil }
+        return parts.dropLast().joined(separator: "\\")
+    }
+
     static func projectName(forShipping url: URL) -> String? {
         let win64 = url.deletingLastPathComponent()
         guard win64.lastPathComponent.lowercased() == "win64" else { return nil }

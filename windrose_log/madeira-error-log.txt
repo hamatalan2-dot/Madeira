@@ -1,0 +1,257 @@
+0024:err:thread:init_thread_stack iOS arm64ec: NOT setting cpu_area (owner machine=0xaa64 session is_arm64ec=0)
+0024:err:thread:init_thread_stack iOS native stack: TEB 0xfbffe0000 StackBase=0x127780000 StackLimit=0x126f88000 DeallocStack=0x126f80000 (reserve=0x0 commit=0x0)
+0024:err:module:load_ntdll_functions [teb-tsd] published offset=0x8d0 to ntdll export at 0xfbfdb0bd0
+0024:err:module:load_ntdll_functions [fex-arena] ml800 legacy ntdll-global write (NOT the live channel; the dispatcher now uses unix_ios_get_fex_arena) base=0xb70000000 end=0xd70000000
+0024:err:module:load_ntdll_functions syscall_dispatcher: p=0xfbfdb0bc8 *p=0x10529eda0 (unix func=0x10529eda0)
+0024:err:module:load_ntdll_functions unix_call_dispatcher: p=0xfbfdb0bc0 *p=0x10529f020
+0024:err:module:load_ntdll_functions JIT .data verify:
+0024:err:module:load_ntdll_functions   syscall_disp: orig@0xfbfdb0bc8=0x10529eda0, jit@0x300138bc8=0x10529eda0
+0024:err:module:load_ntdll_functions   unix_call_disp: orig@0xfbfdb0bc0=0x10529f020, jit@0x300138bc0=0x10529f020
+0024:err:module:load_ntdll_functions   unixlib_handle: orig@0xfbfdb0be8=0x1060ca6d0, jit@0x300138be8=0x1060ca6d0
+0024:err:module:load_ntdll_functions synced dispatchers to JIT .data
+0024:err:server:server_init_process_done signal_start_thread: teb=0xfbffe0000 peb=0xfbfff0000 TransferAddress=0x126e2d3cc suspend=0
+0024:err:seh:init_syscall_frame init_syscall_frame: redirected PC 0xfbfd5837c → 0x3000e037c (JIT pool)
+0024:err:seh:init_syscall_frame init_syscall_frame: allocated trampoline slot 0, tramp=0x300000008, teb=0xfbffe0000
+0024:err:seh:init_syscall_frame page0: first_region=0x104f4c000 size=0x1160000 prot=5/5 kr=0 teb=0xfbffe0000 teb_page=0xfbffe0000 off=0x0
+0024:err:seh:init_syscall_frame page0 M1 allocate(FIXED): kr=1 target=0x0
+0024:err:seh:init_syscall_frame page0 M2 map(RW,FIXED|OVERWRITE): kr=1 target=0x0
+0024:err:seh:init_syscall_frame page0 M3 map(RW,FIXED): kr=1 target=0x0
+0024:err:seh:init_syscall_frame page0 M4 remap(FIXED): kr=1 target=0x0
+0024:err:seh:init_syscall_frame page0 M5 mem_entry: kr=0
+0024:err:seh:init_syscall_frame page0 M5 map: kr=1 target=0x0
+0024:err:seh:init_syscall_frame page0 M6 mmap(RW,FIXED): p=0xffffffffffffffff errno=12
+0024:err:seh:init_syscall_frame page0 M7 vm_allocate: kr=1 target=0x0
+0024:err:seh:init_syscall_frame page0: trying debugger (BRK #0xf00d, x16=3)...
+0024:err:seh:init_syscall_frame page0 M8 debugger: result=0
+0024:err:seh:init_syscall_frame ALL page0 mapping approaches FAILED (including debugger) — relying on Mach handler only
+0024:err:seh:ios_install_task_exception_port [task-exc] INSTALLED ours=0x6d0b mask=ba+bi+brk displaced=1 rev=ml523
+0024:err:seh:ios_install_task_exception_port [task-exc]   prev[0] mask=0x46 port=0x0 behavior=0x0 flavor=0 (none — no debugger held it)
+0024:err:seh:ios_setup_mach_exception_handler Mach exception handler registered thread 0x880b (idx=0), teb=0xfbffe0000 tramp=0x300000008 usd=0x123920000 mask=ba+bi rev=ml353
+0024:err:seh:init_syscall_frame init_syscall_frame: mach exc thread alive=1, slot=0
+0024:err:seh:init_syscall_frame init_syscall_frame: signals_total=0 before PE entry
+0024:err:seh:init_syscall_frame init_syscall_frame: frame=0xb300ffcd0 pc=0x3000e037c x0=0x12777fc70 sp=0x12777fc70 x18=0xfbffe0000 restore_flags=0x400007
+0024:err:module:load_dll [dll-missing] ml718 UNCAPPED L"winemac.drv" status=c0000135 (subsystem dependency)
+0024:err:module:load_dll [dll-missing] rev=ml336 #1 L"winemac.drv" status=c0000135 -- if the webhelper dies right after this, it is the delay-load Chromium kills the process over
+0024:err:module:load_dll [dll-missing] ml718 UNCAPPED L"winex11.drv" status=c0000135 (subsystem dependency)
+0024:err:module:load_dll [dll-missing] rev=ml336 #2 L"winex11.drv" status=c0000135 -- if the webhelper dies right after this, it is the delay-load Chromium kills the process over
+0024:err:module:load_dll [dll-missing] ml718 UNCAPPED L"winewayland.drv" status=c0000135 (subsystem dependency)
+0024:err:module:load_dll [dll-missing] rev=ml336 #3 L"winewayland.drv" status=c0000135 -- if the webhelper dies right after this, it is the delay-load Chromium kills the process over
+0024:err:thread:init_thread_stack iOS arm64ec: NOT setting cpu_area (owner machine=0xaa64 session is_arm64ec=0)
+0024:err:thread:init_thread_stack iOS native stack: TEB 0xfbffd0000 StackBase=0x129180000 StackLimit=0x128988000 DeallocStack=0x128980000 (reserve=0x0 commit=0x0)
+0028:err:seh:init_syscall_frame init_syscall_frame: redirected PC 0xfbfd5837c → 0x3000e037c (JIT pool)
+0028:err:seh:init_syscall_frame init_syscall_frame: allocated trampoline slot 1, tramp=0x300000018, teb=0xfbffd0000
+0028:err:seh:init_syscall_frame page0: already attempted by first thread — skipping (Mach handler covers x18=0)
+0028:err:seh:ios_setup_mach_exception_handler Mach exception handler registered thread 0xefb7 (idx=1), teb=0xfbffd0000 tramp=0x300000018 usd=0x123920000 mask=ba+bi rev=ml353
+0028:err:seh:init_syscall_frame init_syscall_frame: mach exc thread alive=1, slot=1
+0028:err:seh:init_syscall_frame init_syscall_frame: signals_total=1 before PE entry
+0028:err:seh:init_syscall_frame init_syscall_frame: frame=0xb301ffb90 pc=0x3000e037c x0=0x12917fc70 sp=0x12917fc70 x18=0xfbffd0000 restore_flags=0x400007
+0028:err:module:alloc_thread_tls iOS-Madeira alloc_thread_tls: TEB=0000000FBFFD0000 TEB->TLS=0000000123998AB0 TLS[0]=0000000000000000 TLS[1]=0000000000000000 TLS[2]=0000000000000000 TLS[3]=0000000000000000 (count=32)
+0024:err:thread:init_thread_stack iOS arm64ec: NOT setting cpu_area (owner machine=0xaa64 session is_arm64ec=0)
+0024:err:thread:init_thread_stack iOS native stack: TEB 0xfbffc0000 StackBase=0x129980000 StackLimit=0x129188000 DeallocStack=0x129180000 (reserve=0x0 commit=0x0)
+002c:err:seh:init_syscall_frame init_syscall_frame: redirected PC 0xfbfd5837c → 0x3000e037c (JIT pool)
+002c:err:seh:init_syscall_frame init_syscall_frame: allocated trampoline slot 2, tramp=0x300000028, teb=0xfbffc0000
+002c:err:seh:init_syscall_frame page0: already attempted by first thread — skipping (Mach handler covers x18=0)
+002c:err:seh:ios_setup_mach_exception_handler Mach exception handler registered thread 0xcd3b (idx=2), teb=0xfbffc0000 tramp=0x300000028 usd=0x123920000 mask=ba+bi rev=ml353
+002c:err:seh:init_syscall_frame init_syscall_frame: mach exc thread alive=1, slot=2
+002c:err:seh:init_syscall_frame init_syscall_frame: signals_total=2 before PE entry
+002c:err:seh:init_syscall_frame init_syscall_frame: frame=0xb302ffb90 pc=0x3000e037c x0=0x12997fc70 sp=0x12997fc70 x18=0xfbffc0000 restore_flags=0x400007
+002c:err:module:alloc_thread_tls iOS-Madeira alloc_thread_tls: TEB=0000000FBFFC0000 TEB->TLS=0000000123998BC0 TLS[0]=0000000000000000 TLS[1]=0000000000000000 TLS[2]=0000000000000000 TLS[3]=0000000000000000 (count=32)
+002c:err:thread:set_native_thread_name [thr-name] ml810 tid=002c teb=0xfbffc0000 name="wine_explorer_display_settings_restorer"
+0028:err:thread:RtlExitUserThread [thr-exit] ml806 RtlExitUserThread tid=0028 status=00000000 caller=00000003001C6FDC
+0028:err:module:LdrShutdownThread [detach-probe] ml843 tid=0028 top=0000000000000000 area=0000000000000000 tls-blocks=32 hits=0 (before FLS/detach cleanup)
+0028:err:thread:NtTerminateThread [thr-exit] ml805 target=0xfffffffffffffffe self=1 exit_code=0 by_tid=0028 caller=0x10529ee9c
+0024:err:thread:init_thread_stack iOS arm64ec: NOT setting cpu_area (owner machine=0xaa64 session is_arm64ec=0)
+0024:err:thread:init_thread_stack iOS native stack: TEB 0xfbffb0000 StackBase=0x12a180000 StackLimit=0x129988000 DeallocStack=0x129980000 (reserve=0x0 commit=0x0)
+0030:err:seh:init_syscall_frame init_syscall_frame: redirected PC 0xfbfd5837c → 0x3000e037c (JIT pool)
+0030:err:seh:init_syscall_frame init_syscall_frame: allocated trampoline slot 3, tramp=0x300000038, teb=0xfbffb0000
+0030:err:seh:init_syscall_frame page0: already attempted by first thread — skipping (Mach handler covers x18=0)
+0030:err:seh:ios_setup_mach_exception_handler Mach exception handler registered thread 0xcc43 (idx=3), teb=0xfbffb0000 tramp=0x300000038 usd=0x123920000 mask=ba+bi rev=ml353
+0030:err:seh:init_syscall_frame init_syscall_frame: mach exc thread alive=1, slot=3
+0030:err:seh:init_syscall_frame init_syscall_frame: signals_total=3 before PE entry
+0030:err:seh:init_syscall_frame init_syscall_frame: frame=0xb303ffb90 pc=0x3000e037c x0=0x12a17fc70 sp=0x12a17fc70 x18=0xfbffb0000 restore_flags=0x400007
+0030:err:module:alloc_thread_tls iOS-Madeira alloc_thread_tls: TEB=0000000FBFFB0000 TEB->TLS=000000012399FAD0 TLS[0]=0000000000000000 TLS[1]=0000000000000000 TLS[2]=0000000000000000 TLS[3]=0000000000000000 (count=32)
+0024:err:sync:RtlDeleteCriticalSection [cs-life] ml672 delete crit=0000000127F85B20 sem=0000000000000000 lock=-1
+0024:err:sync:RtlDeleteCriticalSection [cs-life] ml672 delete crit=0000000127F85B20 sem=0000000000000000 lock=-1
+0038:err:thread:init_thread_stack iOS arm64ec: NOT setting cpu_area (owner machine=0xaa64 session is_arm64ec=0)
+0038:err:thread:init_thread_stack iOS native stack: TEB 0xfbffa0000 StackBase=0x12a980000 StackLimit=0x12a188000 DeallocStack=0x12a180000 (reserve=0x0 commit=0x0)
+0038:err:server:server_init_process_done signal_start_thread: teb=0xfbffa0000 peb=0x110f8c000 TransferAddress=0xb30418a98 suspend=0
+0038:err:seh:init_syscall_frame init_syscall_frame: redirected PC 0xfbfd5837c → 0x30190037c (JIT pool)
+0038:err:seh:init_syscall_frame init_syscall_frame: allocated trampoline slot 4, tramp=0x300000048, teb=0xfbffa0000
+0038:err:seh:init_syscall_frame page0: already attempted by first thread — skipping (Mach handler covers x18=0)
+0038:err:seh:ios_setup_mach_exception_handler Mach exception handler registered thread 0xd087 (idx=4), teb=0xfbffa0000 tramp=0x300000048 usd=0x123920000 mask=ba+bi rev=ml353
+0038:err:seh:init_syscall_frame init_syscall_frame: mach exc thread alive=1, slot=4
+0038:err:seh:init_syscall_frame init_syscall_frame: signals_total=4 before PE entry
+0038:err:seh:init_syscall_frame init_syscall_frame: frame=0xb3055fcd0 pc=0x30190037c x0=0x12a97fc70 sp=0x12a97fc70 x18=0xfbffa0000 restore_flags=0x400007
+0024:err:thread:init_thread_stack iOS arm64ec: NOT setting cpu_area (owner machine=0xaa64 session is_arm64ec=0)
+0024:err:thread:init_thread_stack iOS native stack: TEB 0xfbff90000 StackBase=0x12b180000 StackLimit=0x12a988000 DeallocStack=0x12a980000 (reserve=0x0 commit=0x0)
+003c:err:seh:init_syscall_frame init_syscall_frame: redirected PC 0xfbfd5837c → 0x3000e037c (JIT pool)
+003c:err:seh:init_syscall_frame init_syscall_frame: allocated trampoline slot 5, tramp=0x300000058, teb=0xfbff90000
+003c:err:seh:init_syscall_frame page0: already attempted by first thread — skipping (Mach handler covers x18=0)
+003c:err:seh:ios_setup_mach_exception_handler Mach exception handler registered thread 0xd3b3 (idx=5), teb=0xfbff90000 tramp=0x300000058 usd=0x123920000 mask=ba+bi rev=ml353
+003c:err:seh:init_syscall_frame init_syscall_frame: mach exc thread alive=1, slot=5
+003c:err:seh:init_syscall_frame init_syscall_frame: signals_total=4 before PE entry
+003c:err:seh:init_syscall_frame init_syscall_frame: frame=0xb3065fb90 pc=0x3000e037c x0=0x12b17fc70 sp=0x12b17fc70 x18=0xfbff90000 restore_flags=0x400007
+003c:err:module:alloc_thread_tls iOS-Madeira alloc_thread_tls: TEB=0000000FBFF90000 TEB->TLS=0000000127F8A420 TLS[0]=0000000000000000 TLS[1]=0000000000000000 TLS[2]=0000000000000000 TLS[3]=0000000000000000 (count=32)
+003c:err:thread:set_native_thread_name [thr-name] ml810 tid=003c teb=0xfbff90000 name="wine_rpcrt4_server"
+0040:err:seh:init_syscall_frame init_syscall_frame: redirected PC 0xfbfd5837c → 0x30190037c (JIT pool)
+0040:err:seh:init_syscall_frame init_syscall_frame: allocated trampoline slot 6, tramp=0x300000068, teb=0xfbff80000
+0040:err:seh:init_syscall_frame page0: already attempted by first thread — skipping (Mach handler covers x18=0)
+0040:err:seh:ios_setup_mach_exception_handler Mach exception handler registered thread 0xed07 (idx=6), teb=0xfbff80000 tramp=0x300000068 usd=0x123920000 mask=ba+bi rev=ml353
+0040:err:seh:init_syscall_frame init_syscall_frame: mach exc thread alive=1, slot=6
+0040:err:seh:init_syscall_frame init_syscall_frame: signals_total=8 before PE entry
+0040:err:seh:init_syscall_frame init_syscall_frame: frame=0xb3075fb90 pc=0x30190037c x0=0x12bebfc70 sp=0x12bebfc70 x18=0xfbff80000 restore_flags=0x400007
+0040:err:module:alloc_thread_tls iOS-Madeira alloc_thread_tls: TEB=0000000FBFF80000 TEB->TLS=000000012B5C3040 TLS[0]=0000000000000000 TLS[1]=0000000000000000 TLS[2]=0000000000000000 TLS[3]=0000000000000000 (count=32)
+0040:err:thread:set_native_thread_name [thr-name] ml810 tid=0040 teb=0xfbff80000 name="wine_rpcrt4_server"
+0038:err:thread:init_thread_stack iOS arm64ec: NOT setting cpu_area (owner machine=0xaa64 session is_arm64ec=0)
+0038:err:thread:init_thread_stack iOS native stack: TEB 0xfbff70000 StackBase=0x12c6c0000 StackLimit=0x12bec8000 DeallocStack=0x12bec0000 (reserve=0x0 commit=0x0)
+0044:err:seh:init_syscall_frame init_syscall_frame: redirected PC 0xfbfd5837c → 0x30190037c (JIT pool)
+0044:err:seh:init_syscall_frame init_syscall_frame: allocated trampoline slot 7, tramp=0x300000078, teb=0xfbff70000
+0044:err:seh:init_syscall_frame page0: already attempted by first thread — skipping (Mach handler covers x18=0)
+0044:err:seh:ios_setup_mach_exception_handler Mach exception handler registered thread 0xec27 (idx=7), teb=0xfbff70000 tramp=0x300000078 usd=0x123920000 mask=ba+bi rev=ml353
+0044:err:seh:init_syscall_frame init_syscall_frame: mach exc thread alive=1, slot=7
+0044:err:seh:init_syscall_frame init_syscall_frame: signals_total=9 before PE entry
+0044:err:seh:init_syscall_frame init_syscall_frame: frame=0xb3085fb90 pc=0x30190037c x0=0x12c6bfc70 sp=0x12c6bfc70 x18=0xfbff70000 restore_flags=0x400007
+0044:err:module:alloc_thread_tls iOS-Madeira alloc_thread_tls: TEB=0000000FBFF70000 TEB->TLS=000000012B5C3740 TLS[0]=0000000000000000 TLS[1]=0000000000000000 TLS[2]=0000000000000000 TLS[3]=0000000000000000 (count=32)
+0024:err:file:NtReadFile ml955 [read-src] #1 handle=0xe0 type=INVALID(0) options=00000001 len=16 offset=(none) I64x async=0
+0040:err:thread:init_thread_stack iOS arm64ec: NOT setting cpu_area (owner machine=0xaa64 session is_arm64ec=0)
+0040:err:thread:init_thread_stack iOS native stack: TEB 0xfbff60000 StackBase=0x12cec0000 StackLimit=0x12c6c8000 DeallocStack=0x12c6c0000 (reserve=0x0 commit=0x0)
+0048:err:seh:init_syscall_frame init_syscall_frame: redirected PC 0xfbfd5837c → 0x30190037c (JIT pool)
+0048:err:seh:init_syscall_frame init_syscall_frame: allocated trampoline slot 8, tramp=0x300000088, teb=0xfbff60000
+0048:err:seh:init_syscall_frame page0: already attempted by first thread — skipping (Mach handler covers x18=0)
+0048:err:seh:ios_setup_mach_exception_handler Mach exception handler registered thread 0xea2b (idx=8), teb=0xfbff60000 tramp=0x300000088 usd=0x123920000 mask=ba+bi rev=ml353
+0048:err:seh:init_syscall_frame init_syscall_frame: mach exc thread alive=1, slot=8
+0048:err:seh:init_syscall_frame init_syscall_frame: signals_total=10 before PE entry
+0048:err:seh:init_syscall_frame init_syscall_frame: frame=0xb3095fb90 pc=0x30190037c x0=0x12cebfc70 sp=0x12cebfc70 x18=0xfbff60000 restore_flags=0x400007
+0048:err:module:alloc_thread_tls iOS-Madeira alloc_thread_tls: TEB=0000000FBFF60000 TEB->TLS=000000012B5C3970 TLS[0]=0000000000000000 TLS[1]=0000000000000000 TLS[2]=0000000000000000 TLS[3]=0000000000000000 (count=32)
+0048:err:thread:set_native_thread_name [thr-name] ml810 tid=0048 teb=0xfbff60000 name="wine_rpcrt4_io"
+0048:err:file:NtReadFile ml955 [read-src] #2 handle=0x98 type=SOCKET(3) options=00000001 len=16 offset=(none) I64x async=0
+0048:err:thread:init_thread_stack iOS arm64ec: NOT setting cpu_area (owner machine=0xaa64 session is_arm64ec=0)
+0048:err:thread:init_thread_stack iOS native stack: TEB 0xfbff50000 StackBase=0x12d6c0000 StackLimit=0x12cec8000 DeallocStack=0x12cec0000 (reserve=0x100000 commit=0x1000)
+004c:err:seh:init_syscall_frame init_syscall_frame: redirected PC 0xfbfd5837c → 0x30190037c (JIT pool)
+004c:err:seh:init_syscall_frame init_syscall_frame: allocated trampoline slot 9, tramp=0x300000098, teb=0xfbff50000
+004c:err:seh:init_syscall_frame page0: already attempted by first thread — skipping (Mach handler covers x18=0)
+004c:err:seh:ios_setup_mach_exception_handler Mach exception handler registered thread 0xe82b (idx=9), teb=0xfbff50000 tramp=0x300000098 usd=0x123920000 mask=ba+bi rev=ml353
+004c:err:seh:init_syscall_frame init_syscall_frame: mach exc thread alive=1, slot=9
+004c:err:seh:init_syscall_frame init_syscall_frame: signals_total=11 before PE entry
+004c:err:seh:init_syscall_frame init_syscall_frame: frame=0xb30a5fb90 pc=0x30190037c x0=0x12d6bfc70 sp=0x12d6bfc70 x18=0xfbff50000 restore_flags=0x400007
+004c:err:module:alloc_thread_tls iOS-Madeira alloc_thread_tls: TEB=0000000FBFF50000 TEB->TLS=000000012B5C87B0 TLS[0]=0000000000000000 TLS[1]=0000000000000000 TLS[2]=0000000000000000 TLS[3]=0000000000000000 (count=32)
+004c:err:thread:set_native_thread_name [thr-name] ml810 tid=004c teb=0xfbff50000 name="wine_threadpool_worker"
+0024:err:ole:start_rpcss service manager came up after 1 retries
+004c:err:sync:RtlDeleteCriticalSection [cs-life] ml672 delete crit=000000012B5CC5B0 sem=0000000000000000 lock=-1
+004c:err:sync:RtlDeleteCriticalSection [cs-life] ml672 delete crit=000000012B5CC5B0 sem=0000000000000000 lock=-1
+004c:err:process:NtCreateUserProcess NtCreateUserProcess: image=L"C:\\windows\\system32\\rpcss.exe" cmdline=L"C:\\windows\\system32\\rpcss.exe"
+004c:err:process:spawn_process spawn_process: creating child thread for L"C:\\windows\\system32\\rpcss.exe" (fd=134, unixdir=140, dup_unixdir=144)
+0054:err:thread:init_thread_stack iOS arm64ec: NOT setting cpu_area (owner machine=0xaa64 session is_arm64ec=0)
+0054:err:thread:init_thread_stack iOS native stack: TEB 0xfbff40000 StackBase=0x12dec0000 StackLimit=0x12d6c8000 DeallocStack=0x12d6c0000 (reserve=0x0 commit=0x0)
+0054:err:server:server_init_process_done signal_start_thread: teb=0xfbff40000 peb=0x123930000 TransferAddress=0xb30a72734 suspend=0
+0054:err:seh:init_syscall_frame init_syscall_frame: redirected PC 0xfbfd5837c → 0x30242037c (JIT pool)
+0054:err:seh:init_syscall_frame init_syscall_frame: allocated trampoline slot 10, tramp=0x3000000a8, teb=0xfbff40000
+0054:err:seh:init_syscall_frame page0: already attempted by first thread — skipping (Mach handler covers x18=0)
+0054:err:seh:ios_setup_mach_exception_handler Mach exception handler registered thread 0xe623 (idx=10), teb=0xfbff40000 tramp=0x3000000a8 usd=0x123920000 mask=ba+bi rev=ml353
+0054:err:seh:init_syscall_frame init_syscall_frame: mach exc thread alive=1, slot=10
+0054:err:seh:init_syscall_frame init_syscall_frame: signals_total=12 before PE entry
+0054:err:seh:init_syscall_frame init_syscall_frame: frame=0xb30bbfcd0 pc=0x30242037c x0=0x12debfc70 sp=0x12debfc70 x18=0xfbff40000 restore_flags=0x400007
+0058:err:seh:init_syscall_frame init_syscall_frame: allocated trampoline slot 11, tramp=0x3000000b8, teb=0xfbff30000
+0058:err:seh:init_syscall_frame page0: already attempted by first thread — skipping (Mach handler covers x18=0)
+0058:err:seh:ios_setup_mach_exception_handler Mach exception handler registered thread 0xe5e3 (idx=11), teb=0xfbff30000 tramp=0x3000000b8 usd=0x123920000 mask=ba+bi rev=ml353
+0058:err:seh:init_syscall_frame init_syscall_frame: mach exc thread alive=1, slot=11
+0058:err:seh:init_syscall_frame init_syscall_frame: signals_total=13 before PE entry
+0058:err:seh:init_syscall_frame init_syscall_frame: frame=0xb30cbfb90 pc=0x30190037c x0=0x12ec3fc70 sp=0x12ec3fc70 x18=0xfbff30000 restore_flags=0x400007
+0058:err:module:alloc_thread_tls iOS-Madeira alloc_thread_tls: TEB=0000000FBFF30000 TEB->TLS=000000012B5CC5A0 TLS[0]=0000000000000000 TLS[1]=0000000000000000 TLS[2]=0000000000000000 TLS[3]=0000000000000000 (count=32)
+0058:err:thread:set_native_thread_name [thr-name] ml810 tid=0058 teb=0xfbff30000 name="wine_rpcrt4_io"
+0058:err:file:NtReadFile ml955 [read-src] #4 handle=0xbc type=SOCKET(3) options=00000001 len=16 offset=(none) I64x async=0
+0058:err:thread:init_thread_stack iOS arm64ec: NOT setting cpu_area (owner machine=0xaa64 session is_arm64ec=0)
+0058:err:thread:init_thread_stack iOS native stack: TEB 0xfbff20000 StackBase=0x12f440000 StackLimit=0x12ec48000 DeallocStack=0x12ec40000 (reserve=0x100000 commit=0x1000)
+005c:err:seh:init_syscall_frame init_syscall_frame: redirected PC 0xfbfd5837c → 0x30190037c (JIT pool)
+005c:err:seh:init_syscall_frame init_syscall_frame: allocated trampoline slot 12, tramp=0x3000000c8, teb=0xfbff20000
+005c:err:seh:init_syscall_frame page0: already attempted by first thread — skipping (Mach handler covers x18=0)
+005c:err:seh:ios_setup_mach_exception_handler Mach exception handler registered thread 0xd72b (idx=12), teb=0xfbff20000 tramp=0x3000000c8 usd=0x123920000 mask=ba+bi rev=ml353
+005c:err:seh:init_syscall_frame init_syscall_frame: mach exc thread alive=1, slot=12
+005c:err:seh:init_syscall_frame init_syscall_frame: signals_total=14 before PE entry
+005c:err:seh:init_syscall_frame init_syscall_frame: frame=0xb30dbfb90 pc=0x30190037c x0=0x12f43fc70 sp=0x12f43fc70 x18=0xfbff20000 restore_flags=0x400007
+005c:err:module:alloc_thread_tls iOS-Madeira alloc_thread_tls: TEB=0000000FBFF20000 TEB->TLS=000000012B5D0160 TLS[0]=0000000000000000 TLS[1]=0000000000000000 TLS[2]=0000000000000000 TLS[3]=0000000000000000 (count=32)
+005c:err:thread:set_native_thread_name [thr-name] ml810 tid=005c teb=0xfbff20000 name="wine_threadpool_worker"
+004c:err:file:NtReadFile ml955 [read-src] #5 handle=0xd0 type=INVALID(0) options=00000000 len=4 offset=I64x async=0
+0054:err:thread:init_thread_stack iOS arm64ec: NOT setting cpu_area (owner machine=0xaa64 session is_arm64ec=0)
+0054:err:thread:init_thread_stack iOS native stack: TEB 0xfbff10000 StackBase=0x12fc40000 StackLimit=0x12f448000 DeallocStack=0x12f440000 (reserve=0x0 commit=0x0)
+0060:err:seh:init_syscall_frame init_syscall_frame: redirected PC 0xfbfd5837c → 0x30242037c (JIT pool)
+0060:err:seh:init_syscall_frame init_syscall_frame: allocated trampoline slot 13, tramp=0x3000000d8, teb=0xfbff10000
+0060:err:seh:init_syscall_frame page0: already attempted by first thread — skipping (Mach handler covers x18=0)
+0060:err:seh:ios_setup_mach_exception_handler Mach exception handler registered thread 0xd873 (idx=13), teb=0xfbff10000 tramp=0x3000000d8 usd=0x123920000 mask=ba+bi rev=ml353
+0060:err:seh:init_syscall_frame init_syscall_frame: mach exc thread alive=1, slot=13
+0060:err:seh:init_syscall_frame init_syscall_frame: signals_total=15 before PE entry
+0060:err:seh:init_syscall_frame init_syscall_frame: frame=0xb30ebfb90 pc=0x30242037c x0=0x12fc3fc70 sp=0x12fc3fc70 x18=0xfbff10000 restore_flags=0x400007
+0060:err:module:alloc_thread_tls iOS-Madeira alloc_thread_tls: TEB=0000000FBFF10000 TEB->TLS=00000001283CAD60 TLS[0]=0000000000000000 TLS[1]=0000000000000000 TLS[2]=0000000000000000 TLS[3]=0000000000000000 (count=32)
+0060:err:file:NtReadFile ml955 [read-src] #6 handle=0x2c type=?(11) options=00000000 len=16 offset=(none) I64x async=0
+0060:err:thread:init_thread_stack iOS arm64ec: NOT setting cpu_area (owner machine=0xaa64 session is_arm64ec=0)
+0060:err:thread:init_thread_stack iOS native stack: TEB 0xfbff00000 StackBase=0x130440000 StackLimit=0x12fc48000 DeallocStack=0x12fc40000 (reserve=0x0 commit=0x0)
+0064:err:seh:init_syscall_frame init_syscall_frame: redirected PC 0xfbfd5837c → 0x30242037c (JIT pool)
+0064:err:seh:init_syscall_frame init_syscall_frame: allocated trampoline slot 14, tramp=0x3000000e8, teb=0xfbff00000
+0064:err:seh:init_syscall_frame page0: already attempted by first thread — skipping (Mach handler covers x18=0)
+0064:err:seh:ios_setup_mach_exception_handler Mach exception handler registered thread 0xd973 (idx=14), teb=0xfbff00000 tramp=0x3000000e8 usd=0x123920000 mask=ba+bi rev=ml353
+0064:err:seh:init_syscall_frame init_syscall_frame: mach exc thread alive=1, slot=14
+0064:err:seh:init_syscall_frame init_syscall_frame: signals_total=16 before PE entry
+0064:err:seh:init_syscall_frame init_syscall_frame: frame=0xb30fbfb90 pc=0x30242037c x0=0x13043fc70 sp=0x13043fc70 x18=0xfbff00000 restore_flags=0x400007
+0064:err:module:alloc_thread_tls iOS-Madeira alloc_thread_tls: TEB=0000000FBFF00000 TEB->TLS=00000001283CCD90 TLS[0]=0000000000000000 TLS[1]=0000000000000000 TLS[2]=0000000000000000 TLS[3]=0000000000000000 (count=32)
+0064:err:thread:set_native_thread_name [thr-name] ml810 tid=0064 teb=0xfbff00000 name="wine_sechost_service"
+0064:err:thread:init_thread_stack iOS arm64ec: NOT setting cpu_area (owner machine=0xaa64 session is_arm64ec=0)
+0064:err:thread:init_thread_stack iOS native stack: TEB 0xfbfef0000 StackBase=0x130c40000 StackLimit=0x130448000 DeallocStack=0x130440000 (reserve=0x0 commit=0x0)
+0068:err:seh:init_syscall_frame init_syscall_frame: redirected PC 0xfbfd5837c → 0x30242037c (JIT pool)
+0068:err:seh:init_syscall_frame init_syscall_frame: allocated trampoline slot 15, tramp=0x3000000f8, teb=0xfbfef0000
+0068:err:seh:init_syscall_frame page0: already attempted by first thread — skipping (Mach handler covers x18=0)
+0068:err:seh:ios_setup_mach_exception_handler Mach exception handler registered thread 0xda73 (idx=15), teb=0xfbfef0000 tramp=0x3000000f8 usd=0x123920000 mask=ba+bi rev=ml353
+0068:err:seh:init_syscall_frame init_syscall_frame: mach exc thread alive=1, slot=15
+0068:err:seh:init_syscall_frame init_syscall_frame: signals_total=17 before PE entry
+0068:err:seh:init_syscall_frame init_syscall_frame: frame=0xb310bfb90 pc=0x30242037c x0=0x130c3fc70 sp=0x130c3fc70 x18=0xfbfef0000 restore_flags=0x400007
+0068:err:module:alloc_thread_tls iOS-Madeira alloc_thread_tls: TEB=0000000FBFEF0000 TEB->TLS=00000001283CEF40 TLS[0]=0000000000000000 TLS[1]=0000000000000000 TLS[2]=0000000000000000 TLS[3]=0000000000000000 (count=32)
+0068:err:thread:set_native_thread_name [thr-name] ml810 tid=0068 teb=0xfbfef0000 name="wine_rpcrt4_server"
+0064:err:thread:init_thread_stack iOS arm64ec: NOT setting cpu_area (owner machine=0xaa64 session is_arm64ec=0)
+0064:err:thread:init_thread_stack iOS native stack: TEB 0xfbfee0000 StackBase=0x131440000 StackLimit=0x130c48000 DeallocStack=0x130c40000 (reserve=0x0 commit=0x0)
+006c:err:seh:init_syscall_frame init_syscall_frame: redirected PC 0xfbfd5837c → 0x30242037c (JIT pool)
+006c:err:seh:init_syscall_frame init_syscall_frame: allocated trampoline slot 16, tramp=0x300000108, teb=0xfbfee0000
+006c:err:seh:init_syscall_frame page0: already attempted by first thread — skipping (Mach handler covers x18=0)
+006c:err:seh:ios_setup_mach_exception_handler Mach exception handler registered thread 0xdb17 (idx=16), teb=0xfbfee0000 tramp=0x300000108 usd=0x123920000 mask=ba+bi rev=ml353
+006c:err:seh:init_syscall_frame init_syscall_frame: mach exc thread alive=1, slot=16
+006c:err:seh:init_syscall_frame init_syscall_frame: signals_total=18 before PE entry
+006c:err:seh:init_syscall_frame init_syscall_frame: frame=0xb311bfb90 pc=0x30242037c x0=0x13143fc70 sp=0x13143fc70 x18=0xfbfee0000 restore_flags=0x400007
+006c:err:module:alloc_thread_tls iOS-Madeira alloc_thread_tls: TEB=0000000FBFEE0000 TEB->TLS=00000001283CF640 TLS[0]=0000000000000000 TLS[1]=0000000000000000 TLS[2]=0000000000000000 TLS[3]=0000000000000000 (count=32)
+006c:err:thread:set_native_thread_name [thr-name] ml810 tid=006c teb=0xfbfee0000 name="wine_rpcrt4_server"
+[subfloor] ml956 serviced 1 access(es) (0 unhandled, 0 refused) via=mach; latest guest 0x7ffe0324 -> real 0x123920324 insn=0xb9400509
+004c:err:sync:RtlDeleteCriticalSection [cs-life] ml672 delete crit=000000012B5C9738 sem=0000000000000000 lock=-1
+005c:err:sync:RtlDeleteCriticalSection [cs-life] ml672 delete crit=000000012B5C96C8 sem=0000000000000000 lock=-1
+0024:err:file:NtReadFile ml955 [read-src] #7 handle=0xe8 type=INVALID(0) options=00000001 len=16 offset=(none) I64x async=0
+0068:err:thread:init_thread_stack iOS arm64ec: NOT setting cpu_area (owner machine=0xaa64 session is_arm64ec=0)
+0068:err:thread:init_thread_stack iOS native stack: TEB 0xfbfed0000 StackBase=0x131d40000 StackLimit=0x131548000 DeallocStack=0x131540000 (reserve=0x0 commit=0x0)
+0070:err:seh:init_syscall_frame init_syscall_frame: redirected PC 0xfbfd5837c → 0x30242037c (JIT pool)
+0070:err:seh:init_syscall_frame init_syscall_frame: allocated trampoline slot 17, tramp=0x300000118, teb=0xfbfed0000
+0070:err:seh:init_syscall_frame page0: already attempted by first thread — skipping (Mach handler covers x18=0)
+0070:err:seh:ios_setup_mach_exception_handler Mach exception handler registered thread 0xdda3 (idx=17), teb=0xfbfed0000 tramp=0x300000118 usd=0x123920000 mask=ba+bi rev=ml353
+0070:err:seh:init_syscall_frame init_syscall_frame: mach exc thread alive=1, slot=17
+0070:err:seh:init_syscall_frame init_syscall_frame: signals_total=19 before PE entry
+0070:err:seh:init_syscall_frame init_syscall_frame: frame=0xb312bfb90 pc=0x30242037c x0=0x131d3fc70 sp=0x131d3fc70 x18=0xfbfed0000 restore_flags=0x400007
+0070:err:module:alloc_thread_tls iOS-Madeira alloc_thread_tls: TEB=0000000FBFED0000 TEB->TLS=00000001283CFE60 TLS[0]=0000000000000000 TLS[1]=0000000000000000 TLS[2]=0000000000000000 TLS[3]=0000000000000000 (count=32)
+0070:err:thread:set_native_thread_name [thr-name] ml810 tid=0070 teb=0xfbfed0000 name="wine_rpcrt4_io"
+0070:err:file:NtReadFile ml955 [read-src] #8 handle=0x58 type=SOCKET(3) options=00000001 len=16 offset=(none) I64x async=0
+0070:err:thread:init_thread_stack iOS arm64ec: NOT setting cpu_area (owner machine=0xaa64 session is_arm64ec=0)
+0070:err:thread:init_thread_stack iOS native stack: TEB 0xfbfec0000 StackBase=0x132540000 StackLimit=0x131d48000 DeallocStack=0x131d40000 (reserve=0x100000 commit=0x1000)
+0074:err:seh:init_syscall_frame init_syscall_frame: redirected PC 0xfbfd5837c → 0x30242037c (JIT pool)
+0074:err:seh:init_syscall_frame init_syscall_frame: allocated trampoline slot 18, tramp=0x300000128, teb=0xfbfec0000
+0074:err:seh:init_syscall_frame page0: already attempted by first thread — skipping (Mach handler covers x18=0)
+0074:err:seh:ios_setup_mach_exception_handler Mach exception handler registered thread 0xdf2b (idx=18), teb=0xfbfec0000 tramp=0x300000128 usd=0x123920000 mask=ba+bi rev=ml353
+0074:err:seh:init_syscall_frame init_syscall_frame: mach exc thread alive=1, slot=18
+0074:err:seh:init_syscall_frame init_syscall_frame: signals_total=20 before PE entry
+0074:err:seh:init_syscall_frame init_syscall_frame: frame=0xb313bfb90 pc=0x30242037c x0=0x13253fc70 sp=0x13253fc70 x18=0xfbfec0000 restore_flags=0x400007
+0074:err:module:alloc_thread_tls iOS-Madeira alloc_thread_tls: TEB=0000000FBFEC0000 TEB->TLS=0000000131444050 TLS[0]=0000000000000000 TLS[1]=0000000000000000 TLS[2]=0000000000000000 TLS[3]=0000000000000000 (count=32)
+0074:err:thread:set_native_thread_name [thr-name] ml810 tid=0074 teb=0xfbfec0000 name="wine_threadpool_worker"
+004c:err:sync:RtlDeleteCriticalSection [cs-life] ml672 delete crit=000000012B5C7C80 sem=0000000000000000 lock=-1
+004c:err:thread:NtTerminateThread [thr-exit] ml805 target=0xfffffffffffffffe self=1 exit_code=0 by_tid=004c caller=0x10529ee9c
+005c:err:sync:RtlDeleteCriticalSection [cs-life] ml672 delete crit=000000012B5CF630 sem=0000000000000000 lock=-1
+005c:err:thread:NtTerminateThread [thr-exit] ml805 target=0xfffffffffffffffe self=1 exit_code=0 by_tid=005c caller=0x10529ee9c
+0074:err:thread:RtlExitUserThread [thr-exit] ml806 RtlExitUserThread tid=0074 status=00000000 caller=000000030242D834
+0074:err:module:LdrShutdownThread [detach-probe] ml843 tid=0074 top=0000000000000000 area=0000000000000000 tls-blocks=32 hits=0 (before FLS/detach cleanup)
+0074:err:sync:RtlDeleteCriticalSection [cs-life] ml672 delete crit=0000000131443520 sem=0000000000000000 lock=-1
+0074:err:thread:NtTerminateThread [thr-exit] ml805 target=0xfffffffffffffffe self=1 exit_code=0 by_tid=0074 caller=0x10529ee9c
+0024:err:sync:RtlDeleteCriticalSection [cs-life] ml672 delete crit=0000000127F8EFF0 sem=0000000000000000 lock=-1
+0024:err:sync:RtlDeleteCriticalSection [cs-life] ml672 delete crit=0000000127F8EFE0 sem=0000000000000000 lock=-1
+0024:err:sync:RtlDeleteCriticalSection [cs-life] ml672 delete crit=0000000127F91260 sem=0000000000000000 lock=-1
+0024:err:sync:RtlDeleteCriticalSection [cs-life] ml672 delete crit=0000000127F91260 sem=0000000000000000 lock=-1

@@ -368,7 +368,13 @@ struct LibraryEntry: Codable, Identifiable {
     var launchDirectory: String {
         let chosen = (workingDirectory ?? "").trimmingCharacters(in: .whitespaces)
         if !chosen.isEmpty { return chosen }
-        return steamWorkingWindowsPath ?? Self.folder(of: launchWindowsPath)
+        if let steam = steamWorkingWindowsPath { return steam }
+        let folder = Self.folder(of: launchWindowsPath)
+        if GameEnginePreset.isUnreal(relativePath: launchRelativePath),
+           let binaries = GameEnginePreset.binariesWorkingDirectory(windowsFolder: folder) {
+            return binaries
+        }
+        return folder
     }
     /// C:\a\b\x.exe -> C:\a\b (C:\ for a file in the root).
     static func folder(of windowsPath: String) -> String {
