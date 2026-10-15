@@ -3906,6 +3906,7 @@ static BOOL madeira_force_builtin_dll( const WCHAR *name )
     };
     static int native = -1;
     unsigned int i;
+    const WCHAR *base = name, *p;
 
     if (native < 0)
     {
@@ -3916,8 +3917,9 @@ static BOOL madeira_force_builtin_dll( const WCHAR *name )
         native = (!RtlQueryEnvironmentVariable_U( NULL, &nm, &val ) && val.Length && buf[0] == '1');
     }
     if (native) return FALSE;
+    for (p = name; *p; p++) if (*p == '\\' || *p == '/') base = p + 1;
     for (i = 0; i < ARRAY_SIZE(names); i++)
-        if (!wcsicmp( name, names[i] )) return TRUE;
+        if (!wcsicmp( base, names[i] )) return TRUE;
     return FALSE;
 }
 
@@ -3970,13 +3972,19 @@ static NTSTATUS find_dll_file( const WCHAR *load_path, const WCHAR *libname, UNI
     /* Win 7/2008R2 and up seem to re-enable WoW64 FS redirection when loading libraries */
     RtlWow64EnableFsRedirectionEx( 0, &wow64_old_value );
 
-    if (RtlDetermineDosPathNameType_U( libname ) == RtlPathTypeRelative)
+    if (madeira_force_builtin_dll( libname ))
     {
-        if (madeira_force_builtin_dll( libname ))
-        {
-            TRACE( "%s: searching system32 only, for the builtin\n", debugstr_w(libname) );
-            load_path = system_dir;
-        }
+        const WCHAR *base = libname, *p;
+        for (p = libname; *p; p++) if (*p == '\\' || *p == '/') base = p + 1;
+        TRACE( "%s: searching system32 only, for the builtin\n", debugstr_w(libname) );
+        load_path = system_dir;
+        libname = base;
+        status = search_dll_file( load_path, libname, nt_name, pwm, mapping, image_info, id );
+        if (status == STATUS_DLL_NOT_FOUND)
+            status = find_builtin_without_file( libname, nt_name, pwm, mapping, image_info, id );
+    }
+    else if (RtlDetermineDosPathNameType_U( libname ) == RtlPathTypeRelative)
+    {
         status = search_dll_file( load_path, libname, nt_name, pwm, mapping, image_info, id );
         if (status == STATUS_DLL_NOT_FOUND)
             status = find_builtin_without_file( libname, nt_name, pwm, mapping, image_info, id );
