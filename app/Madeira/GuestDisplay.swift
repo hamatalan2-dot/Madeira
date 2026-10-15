@@ -405,7 +405,7 @@ enum GameEnginePreset {
 
     /// Game install root: parent of `<Project>/Binaries/Win64`, else the exe folder.
     static func installRoot(from executable: URL) -> URL {
-        var folder = executable.deletingLastPathComponent()
+        let folder = executable.deletingLastPathComponent()
         if folder.lastPathComponent.lowercased() == "win64" {
             let binaries = folder.deletingLastPathComponent()
             if binaries.lastPathComponent.lowercased() == "binaries" {
@@ -506,16 +506,16 @@ enum GameEnginePreset {
         return String(path.dropFirst(drive.count + 1))
     }
 
-    static func preferredLaunchRelativePath(from relativePath: String) -> String? {
-        let url = LibraryEntry.hostDrive.appendingPathComponent(relativePath)
+    static func preferredLaunchRelativePath(from selected: String) -> String? {
+        let url = LibraryEntry.hostDrive.appendingPathComponent(selected)
         guard FileManager.default.fileExists(atPath: url.path) else { return nil }
         if isEpicAuthLauncher(url.lastPathComponent) { return nil }
-        if let epic = epicAuthLauncher(from: url), let relative = relativePath(of: epic),
-           relative.caseInsensitiveCompare(relativePath) != .orderedSame {
+        if let epic = epicAuthLauncher(from: url), let relative = Self.relativePath(of: epic),
+           relative.caseInsensitiveCompare(selected) != .orderedSame {
             return relative
         }
-        guard let shipping = shippingExecutable(from: url), let relative = relativePath(of: shipping) else { return nil }
-        if relative.caseInsensitiveCompare(relativePath) == .orderedSame { return nil }
+        guard let shipping = shippingExecutable(from: url), let relative = Self.relativePath(of: shipping) else { return nil }
+        if relative.caseInsensitiveCompare(selected) == .orderedSame { return nil }
         return relative
     }
 
