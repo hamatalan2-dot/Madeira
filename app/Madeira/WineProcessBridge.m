@@ -96,7 +96,13 @@ void madeira_audio_activate(const char *reason)
     });
 }
 
-static UIWindow *g_host_browser_window;
+static UIViewController *g_host_browser_vc;
+static int g_host_browser_active;
+
+int madeira_host_browser_active(void)
+{
+    return g_host_browser_active;
+}
 
 @interface MadeiraHostBrowserVC : UIViewController <WKNavigationDelegate>
 @property (nonatomic, copy) NSString *urlString;
@@ -118,8 +124,8 @@ static UIWindow *g_host_browser_window;
     [self.view addSubview:_web];
     NSURL *u = [NSURL URLWithString:_urlString];
     if (u) [_web loadRequest:[NSURLRequest requestWithURL:u]];
-    self.title = @"Sign in";
-    self.navigationItem.prompt = @"Finish on this page, then tap Done. The game stays running.";
+    self.title = @"Epic";
+    self.navigationItem.prompt = @"Sign in here. EOSAuthLauncher then starts the game. Tap Done when finished.";
     self.navigationItem.rightBarButtonItem =
         [[UIBarButtonItem alloc] initWithBarButtonSystemItem:UIBarButtonSystemItemDone
                                                       target:self
@@ -128,8 +134,10 @@ static UIWindow *g_host_browser_window;
 
 - (void)madeiraClose
 {
-    g_host_browser_window.hidden = YES;
-    g_host_browser_window = nil;
+    g_host_browser_active = 0;
+    UIViewController *vc = g_host_browser_vc;
+    g_host_browser_vc = nil;
+    [vc dismissViewControllerAnimated:YES completion:nil];
 }
 
 - (void)webView:(WKWebView *)webView didFinishNavigation:(WKNavigation *)navigation
@@ -139,6 +147,20 @@ static UIWindow *g_host_browser_window;
     if (host.length) self.title = host;
 }
 @end
+
+static UIViewController *madeira_presentation_root(UIWindowScene *scene)
+{
+    UIWindow *key = nil;
+    for (UIWindow *w in scene.windows) {
+        if (w.isHidden) continue;
+        if (w.isKeyWindow) { key = w; break; }
+        if (!key && w.windowLevel <= UIWindowLevelNormal) key = w;
+    }
+    if (!key) key = scene.windows.firstObject;
+    UIViewController *root = key.rootViewController;
+    while (root.presentedViewController) root = root.presentedViewController;
+    return root;
+}
 
 static void madeira_host_browser_present(NSString *url)
 {
@@ -153,25 +175,29 @@ static void madeira_host_browser_present(NSString *url)
         dprintf(STDERR_FILENO, "[winebrowser] no window scene for %s\n", url.UTF8String);
         return;
     }
-    if (g_host_browser_window) {
-        UINavigationController *nav = (UINavigationController *)g_host_browser_window.rootViewController;
-        MadeiraHostBrowserVC *vc = (MadeiraHostBrowserVC *)nav.viewControllers.firstObject;
-        if ([vc isKindOfClass:[MadeiraHostBrowserVC class]] && vc.web) {
+    if (g_host_browser_vc) {
+        UINavigationController *nav = (UINavigationController *)g_host_browser_vc;
+        MadeiraHostBrowserVC *page = (MadeiraHostBrowserVC *)nav.viewControllers.firstObject;
+        if ([page isKindOfClass:[MadeiraHostBrowserVC class]] && page.web) {
             NSURL *u = [NSURL URLWithString:url];
-            if (u) [vc.web loadRequest:[NSURLRequest requestWithURL:u]];
-            g_host_browser_window.hidden = NO;
-            [g_host_browser_window makeKeyAndVisible];
+            if (u) [page.web loadRequest:[NSURLRequest requestWithURL:u]];
+            g_host_browser_active = 1;
             return;
         }
+    }
+    UIViewController *root = madeira_presentation_root(scene);
+    if (!root) {
+        dprintf(STDERR_FILENO, "[winebrowser] no root to present %s\n", url.UTF8String);
+        return;
     }
     MadeiraHostBrowserVC *vc = [MadeiraHostBrowserVC new];
     vc.urlString = url;
     UINavigationController *nav = [[UINavigationController alloc] initWithRootViewController:vc];
-    g_host_browser_window = [[UIWindow alloc] initWithWindowScene:scene];
-    g_host_browser_window.windowLevel = UIWindowLevelAlert;
-    g_host_browser_window.rootViewController = nav;
-    g_host_browser_window.hidden = NO;
-    [g_host_browser_window makeKeyAndVisible];
+    nav.modalPresentationStyle = UIModalPresentationFullScreen;
+    g_host_browser_vc = nav;
+    g_host_browser_active = 1;
+    [root presentViewController:nav animated:YES completion:nil];
+    dprintf(STDERR_FILENO, "[winebrowser] presented modal for %s\n", url.UTF8String);
 }
 
 int madeira_open_http_url(const char *url)

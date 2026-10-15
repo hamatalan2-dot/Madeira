@@ -562,6 +562,7 @@ final class MetalBackedView: UIView {
     }
 
     override func touchesBegan(_ touches: Set<UITouch>, with event: UIEvent?) {
+        if madeira_host_browser_active() != 0 { return }
         if HardwareInput.shared.interceptTouches(touches, event, .began) { return }
         guard let touches = tmgFilter(touches, .began) else { return }
         if touchPointerMode { touchModeBegan(touches); return }
@@ -609,6 +610,7 @@ final class MetalBackedView: UIView {
     }
 
     override func touchesMoved(_ touches: Set<UITouch>, with event: UIEvent?) {
+        if madeira_host_browser_active() != 0 { return }
         if HardwareInput.shared.interceptTouches(touches, event, .moved) { return }
         guard let touches = tmgFilter(touches, .moved) else { return }
         if touchPointerMode { touchModeMoved(touches, event); return }
@@ -691,6 +693,7 @@ final class MetalBackedView: UIView {
     }
 
     override func touchesEnded(_ touches: Set<UITouch>, with event: UIEvent?) {
+        if madeira_host_browser_active() != 0 { return }
         if HardwareInput.shared.interceptTouches(touches, event, .ended) { return }
         guard let touches = tmgFilter(touches, .ended) else { return }
         if touchPointerMode { touchModeEnded(touches, event); return }
@@ -735,6 +738,7 @@ final class MetalBackedView: UIView {
     }
 
     override func touchesCancelled(_ touches: Set<UITouch>, with event: UIEvent?) {
+        if madeira_host_browser_active() != 0 { return }
         if HardwareInput.shared.interceptTouches(touches, event, .cancelled) { return }
         guard let touches = tmgFilter(touches, .cancelled) else { return }
         if touchPointerMode { touchModeCancelled(touches); return }
