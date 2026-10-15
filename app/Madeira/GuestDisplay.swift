@@ -470,14 +470,51 @@ enum GameEnginePreset {
         return found
     }
 
+    static func isEpicAuthLauncher(_ filename: String) -> Bool {
+        let n = filename.lowercased()
+        return n == "eosauthlauncher.exe"
+            || n == "eosbootstrapper.exe"
+            || n == "epiconlineservicesbootstrapper.exe"
+    }
+
+    /// EOS bootstrapper next to the game (or under the install root). The shipping
+    /// binary then starts as its child; launching the .exe directly prints
+    /// "Launch game from EOSAuthLauncher.exe".
+    static func epicAuthLauncher(from executable: URL) -> URL? {
+        if isEpicAuthLauncher(executable.lastPathComponent) { return executable }
+        let fm = FileManager.default
+        var dirs = [executable.deletingLastPathComponent(), installRoot(from: executable)]
+        dirs.append(contentsOf: dirs.flatMap { parent in
+            (try? fm.contentsOfDirectory(at: parent, includingPropertiesForKeys: [.isDirectoryKey], options: [.skipsHiddenFiles])) ?? []
+        }.filter { ((try? $0.resourceValues(forKeys: [.isDirectoryKey]).isDirectory) ?? false) })
+        var seen = Set<String>()
+        for dir in dirs {
+            let path = dir.standardizedFileURL.path
+            guard seen.insert(path.lowercased()).inserted else { continue }
+            for name in ["EOSAuthLauncher.exe", "EOSBootstrapper.exe", "EpicOnlineServicesBootstrapper.exe"] {
+                let candidate = dir.appendingPathComponent(name)
+                if fm.fileExists(atPath: candidate.path) { return candidate }
+            }
+        }
+        return nil
+    }
+
+    static func relativePath(of url: URL) -> String? {
+        let drive = LibraryEntry.hostDrive.resolvingSymlinksInPath().path
+        let path = url.resolvingSymlinksInPath().path
+        guard path.hasPrefix(drive + "/") else { return nil }
+        return String(path.dropFirst(drive.count + 1))
+    }
+
     static func preferredLaunchRelativePath(from relativePath: String) -> String? {
         let url = LibraryEntry.hostDrive.appendingPathComponent(relativePath)
-        guard FileManager.default.fileExists(atPath: url.path),
-              let shipping = shippingExecutable(from: url) else { return nil }
-        let drive = LibraryEntry.hostDrive.resolvingSymlinksInPath().path
-        let path = shipping.resolvingSymlinksInPath().path
-        guard path.hasPrefix(drive + "/") else { return nil }
-        let relative = String(path.dropFirst(drive.count + 1))
+        guard FileManager.default.fileExists(atPath: url.path) else { return nil }
+        if isEpicAuthLauncher(url.lastPathComponent) { return nil }
+        if let epic = epicAuthLauncher(from: url), let relative = relativePath(of: epic),
+           relative.caseInsensitiveCompare(relativePath) != .orderedSame {
+            return relative
+        }
+        guard let shipping = shippingExecutable(from: url), let relative = relativePath(of: shipping) else { return nil }
         if relative.caseInsensitiveCompare(relativePath) == .orderedSame { return nil }
         return relative
     }

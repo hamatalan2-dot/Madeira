@@ -354,6 +354,9 @@ struct LibraryEntry: Codable, Identifiable {
         if GameEnginePreset.isUnity(relativePath: launchRelativePath) {
             return GameEnginePreset.unityArguments(base, resolution: resolution)
         }
+        if GameEnginePreset.isEpicAuthLauncher(launchRelativePath.split(separator: "/").last.map(String.init) ?? "") {
+            return base
+        }
         if GameEnginePreset.isUnreal(relativePath: launchRelativePath) {
             let url = Self.hostDrive.appendingPathComponent(launchRelativePath)
             return GameEnginePreset.unrealArguments(base, project: GameEnginePreset.projectName(forShipping: url))
@@ -370,6 +373,9 @@ struct LibraryEntry: Codable, Identifiable {
         if !chosen.isEmpty { return chosen }
         if let steam = steamWorkingWindowsPath { return steam }
         let folder = Self.folder(of: launchWindowsPath)
+        if GameEnginePreset.isEpicAuthLauncher(launchRelativePath.split(separator: "/").last.map(String.init) ?? "") {
+            return folder
+        }
         if GameEnginePreset.isUnreal(relativePath: launchRelativePath),
            let binaries = GameEnginePreset.binariesWorkingDirectory(windowsFolder: folder) {
             return binaries
@@ -592,15 +598,18 @@ struct LibraryEntry: Codable, Identifiable {
             guard startsSteamGameDirectly, let program = steamProgram, !program.isEmpty else { return relativePath }
             return relativePath + "/" + program
         }()
-        if let shipping = GameEnginePreset.preferredLaunchRelativePath(from: selectedLaunch) {
-            LogStore.shared.log("[unreal] launching \(shipping) instead of \(selectedLaunch)")
+        if let redirected = GameEnginePreset.preferredLaunchRelativePath(from: selectedLaunch) {
+            let kind = GameEnginePreset.isEpicAuthLauncher(redirected.split(separator: "/").last.map(String.init) ?? "") ? "epic" : "unreal"
+            LogStore.shared.log("[\(kind)] launching \(redirected) instead of \(selectedLaunch)")
         }
         // Unset unless chosen: FEX's own default then applies, as for any other launch.
         if reducedX87 { setenv("FEX_X87REDUCEDPRECISION", "1", 1) } else { unsetenv("FEX_X87REDUCEDPRECISION") }
         // Unity launchers often start the real player and exit; keep the session
         // for that child. Unset for other games so madeira.cfg can still opt in.
+        let epicLauncher = GameEnginePreset.isEpicAuthLauncher(launchRelativePath.split(separator: "/").last.map(String.init) ?? "")
         if GameEnginePreset.isUnity(relativePath: launchRelativePath)
-            || GameEnginePreset.isUnreal(relativePath: launchRelativePath) {
+            || GameEnginePreset.isUnreal(relativePath: launchRelativePath)
+            || epicLauncher {
             setenv("MADEIRA_WAIT_CHILDREN", "1", 1)
         } else { unsetenv("MADEIRA_WAIT_CHILDREN") }
         // Exported only when chosen: unset keeps the engine's own default (and any
@@ -619,7 +628,7 @@ struct LibraryEntry: Codable, Identifiable {
         if let anisotropyLimit, [1, 2, 4, 8].contains(anisotropyLimit) { setenv("DXMT_D9_ANISO_LIMIT", String(anisotropyLimit), 1) }
         else { unsetenv("DXMT_D9_ANISO_LIMIT") }
         // Set or unset, so a previous session's choice never stays.
-        if avx == true || GameEnginePreset.isUnreal(relativePath: launchRelativePath) {
+        if avx == true || GameEnginePreset.isUnreal(relativePath: launchRelativePath) || epicLauncher {
             setenv("MADEIRA_FEX_AVX", "1", 1)
         } else { unsetenv("MADEIRA_FEX_AVX") }
         if frameGeneration == true { setenv("MADEIRA_FRAMEGEN", "1", 1) } else { unsetenv("MADEIRA_FRAMEGEN") }
@@ -3069,7 +3078,7 @@ struct LibraryDetail: View {
                             Text("Unity: Madeira adds -force-d3d11, a window, and -screen-width/-screen-height to match Resolution, unless you already set a renderer or those flags. Put steam_appid.txt next to the .exe if the game needs a Steam App ID without Steam.")
                         }
                         if GameEnginePreset.isUnreal(relativePath: entry.launchRelativePath) {
-                            Text("Unreal: Madeira starts *-Win64-Shipping.exe when it finds one, turns on AVX, and adds the project name, -dx11, -windowed, and -ansimalloc unless you already set a renderer or those flags. Direct3D 12 is not the default path.")
+                            Text("Unreal: if EOSAuthLauncher.exe is in the install, Madeira starts that (Epic Online Services) and waits for the game. Otherwise it starts *-Win64-Shipping.exe with AVX, the project name, -dx11, -windowed, and -ansimalloc.")
                         }
                     }
                 }
