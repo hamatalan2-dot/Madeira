@@ -37,6 +37,10 @@ void madeira_seed_prefix_if_needed(const char *prefix_path);
 /* Game audio: category + session, and restart RemoteIO after interruptions. */
 void madeira_audio_activate(const char *reason);
 
+/* winebrowser on iOS: open http(s) in an in-app WKWebView (Epic device link, etc.).
+ * Returns 0 if the overlay was requested. */
+int madeira_open_http_url(const char *url);
+
 #ifdef __cplusplus
 }
 #endif

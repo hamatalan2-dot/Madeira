@@ -713,7 +713,22 @@ static NTSTATUS spawn_process( const RTL_USER_PROCESS_PARAMETERS *params, int so
 NTSTATUS WINAPI __wine_unix_spawnvp( char * const argv[], int wait )
 {
 #ifdef WINE_IOS
-    /* No fork/exec on iOS */
+    /* No fork/exec. winebrowser uses this to open http(s) (Epic device link). */
+    extern int madeira_open_http_url( const char *url ) __attribute__((weak));
+    int i;
+    (void)wait;
+    if (argv && madeira_open_http_url)
+    {
+        for (i = 0; argv[i]; i++)
+        {
+            if (!strncmp( argv[i], "https://", 8 ) || !strncmp( argv[i], "http://", 7 )
+                || !strncmp( argv[i], "mailto:", 7 ))
+            {
+                if (!madeira_open_http_url( argv[i] )) return STATUS_SUCCESS;
+                break;
+            }
+        }
+    }
     return STATUS_NOT_SUPPORTED;
 #else
     pid_t pid, wret;

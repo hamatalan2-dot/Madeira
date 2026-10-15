@@ -12,6 +12,7 @@
 #import <AVFoundation/AVFoundation.h>
 #import <AudioToolbox/AudioToolbox.h>
 #import <UIKit/UIKit.h>
+#import <WebKit/WebKit.h>
 #include <unistd.h>
 #include <pwd.h>
 #include <fcntl.h>
@@ -93,6 +94,103 @@ void madeira_audio_activate(const char *reason)
             madeira_audio_activate("became-active");
         }];
     });
+}
+
+static UIWindow *g_host_browser_window;
+
+@interface MadeiraHostBrowserVC : UIViewController <WKNavigationDelegate>
+@property (nonatomic, copy) NSString *urlString;
+@property (nonatomic, strong) WKWebView *web;
+@end
+
+@implementation MadeiraHostBrowserVC
+- (void)viewDidLoad
+{
+    [super viewDidLoad];
+    self.view.backgroundColor = UIColor.systemBackgroundColor;
+    WKWebViewConfiguration *cfg = [WKWebViewConfiguration new];
+    cfg.websiteDataStore = [WKWebsiteDataStore defaultDataStore];
+    cfg.defaultWebpagePreferences.allowsContentJavaScript = YES;
+    _web = [[WKWebView alloc] initWithFrame:self.view.bounds configuration:cfg];
+    _web.autoresizingMask = UIViewAutoresizingFlexibleWidth | UIViewAutoresizingFlexibleHeight;
+    _web.navigationDelegate = self;
+    _web.customUserAgent = @"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36";
+    [self.view addSubview:_web];
+    NSURL *u = [NSURL URLWithString:_urlString];
+    if (u) [_web loadRequest:[NSURLRequest requestWithURL:u]];
+    self.title = @"Sign in";
+    self.navigationItem.prompt = @"Finish on this page, then tap Done. The game stays running.";
+    self.navigationItem.rightBarButtonItem =
+        [[UIBarButtonItem alloc] initWithBarButtonSystemItem:UIBarButtonSystemItemDone
+                                                      target:self
+                                                      action:@selector(madeiraClose)];
+}
+
+- (void)madeiraClose
+{
+    g_host_browser_window.hidden = YES;
+    g_host_browser_window = nil;
+}
+
+- (void)webView:(WKWebView *)webView didFinishNavigation:(WKNavigation *)navigation
+{
+    (void)navigation;
+    NSString *host = webView.URL.host;
+    if (host.length) self.title = host;
+}
+@end
+
+static void madeira_host_browser_present(NSString *url)
+{
+    UIWindowScene *scene = nil;
+    for (UIScene *s in UIApplication.sharedApplication.connectedScenes) {
+        if (![s isKindOfClass:[UIWindowScene class]]) continue;
+        UIWindowScene *ws = (UIWindowScene *)s;
+        if (ws.activationState == UISceneActivationStateForegroundActive) { scene = ws; break; }
+        if (!scene) scene = ws;
+    }
+    if (!scene) {
+        dprintf(STDERR_FILENO, "[winebrowser] no window scene for %s\n", url.UTF8String);
+        return;
+    }
+    if (g_host_browser_window) {
+        UINavigationController *nav = (UINavigationController *)g_host_browser_window.rootViewController;
+        MadeiraHostBrowserVC *vc = (MadeiraHostBrowserVC *)nav.viewControllers.firstObject;
+        if ([vc isKindOfClass:[MadeiraHostBrowserVC class]] && vc.web) {
+            NSURL *u = [NSURL URLWithString:url];
+            if (u) [vc.web loadRequest:[NSURLRequest requestWithURL:u]];
+            g_host_browser_window.hidden = NO;
+            [g_host_browser_window makeKeyAndVisible];
+            return;
+        }
+    }
+    MadeiraHostBrowserVC *vc = [MadeiraHostBrowserVC new];
+    vc.urlString = url;
+    UINavigationController *nav = [[UINavigationController alloc] initWithRootViewController:vc];
+    g_host_browser_window = [[UIWindow alloc] initWithWindowScene:scene];
+    g_host_browser_window.windowLevel = UIWindowLevelAlert;
+    g_host_browser_window.rootViewController = nav;
+    g_host_browser_window.hidden = NO;
+    [g_host_browser_window makeKeyAndVisible];
+}
+
+int madeira_open_http_url(const char *url)
+{
+    if (!url || !*url) return -1;
+    if (strncmp(url, "https://", 8) && strncmp(url, "http://", 7) && strncmp(url, "mailto:", 7))
+        return -1;
+    NSString *s = [NSString stringWithUTF8String:url];
+    if (!s.length) return -1;
+    dprintf(STDERR_FILENO, "[winebrowser] host overlay %s\n", url);
+    dispatch_async(dispatch_get_main_queue(), ^{
+        if ([s hasPrefix:@"mailto:"]) {
+            NSURL *u = [NSURL URLWithString:s];
+            if (u) [UIApplication.sharedApplication openURL:u options:@{} completionHandler:nil];
+            return;
+        }
+        madeira_host_browser_present(s);
+    });
+    return 0;
 }
 
 /* ---- ml581: undo the hand-made AppData skeleton ------------------------

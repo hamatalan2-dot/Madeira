@@ -3078,7 +3078,7 @@ struct LibraryDetail: View {
                             Text("Unity: Madeira adds -force-d3d11, a window, and -screen-width/-screen-height to match Resolution, unless you already set a renderer or those flags. Put steam_appid.txt next to the .exe if the game needs a Steam App ID without Steam.")
                         }
                         if GameEnginePreset.isUnreal(relativePath: entry.launchRelativePath) {
-                            Text("Unreal: if EOSAuthLauncher.exe is in the install, Madeira starts that (Epic Online Services) and waits for the game. Otherwise it starts *-Win64-Shipping.exe with AVX, the project name, -dx11, -windowed, and -ansimalloc.")
+                            Text("Unreal: if EOSAuthLauncher.exe is in the install, Madeira starts that and waits. Epic device-link pages open in Madeira's in-app browser. Otherwise it starts *-Win64-Shipping.exe with AVX, -dx11, -windowed, and -ansimalloc.")
                         }
                     }
                 }
