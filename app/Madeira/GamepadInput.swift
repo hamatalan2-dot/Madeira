@@ -48,10 +48,13 @@ final class GamepadInput: @unchecked Sendable {
     /// controller is in use. That is why it is opt-in: without the switch,
     /// slot 0 connects only when a real source appears, as before.
     @MainActor func reserveSessionSlot(touchControls: Bool) {
-        guard Self.enabled, Self.optIn("MADEIRA_PAD_EARLY_SLOT") else { return }
+        guard Self.enabled else { return }
+        refreshControllers()
         let touch = touchControls && Self.touchEnabled
         let paired = !GCController.controllers().isEmpty
-        guard touch || paired else { return }
+        // A paired Xbox pad must exist before the game's first XInput poll, even
+        // without MADEIRA_PAD_EARLY_SLOT: many titles enumerate once at start.
+        guard touch || paired || Self.optIn("MADEIRA_PAD_EARLY_SLOT") else { return }
         queue.async { [self] in touchState.reserved = true; sample() }
         LogStore.shared.log("[xinput] ml1990 slot=0 reserved for the session touch=\(touch ? 1 : 0) paired=\(paired ? 1 : 0)")
     }
@@ -99,6 +102,7 @@ final class GamepadInput: @unchecked Sendable {
         // An earlier session in this app run may have taken player 1 off XInput.
         queue.async { [self] in hidActive = false; hidKeepsXInput = false }
         guard ["hid", "dualsense", "generic"].contains(mode.value) else {
+            refreshControllers()
             LogStore.shared.log("[hid-pad] ml2100 session mode=xinput source=\(mode.source)")
             beginPadOutput(xinput: output.xinput && Self.enabled, hid: false, value: output.value)
             return
@@ -109,8 +113,10 @@ final class GamepadInput: @unchecked Sendable {
             return
         }
         // Player 1 is the first paired extended gamepad, as refreshControllers assigns slots.
-        let first = GCController.controllers().first { $0.extendedGamepad != nil }
-        let sony = first?.extendedGamepad is GCDualSenseGamepad || first?.extendedGamepad is GCDualShockGamepad
+        refreshControllers()
+        let first = GCController.controllers().first { Self.extendedProfile(of: $0) != nil }
+        let pad = first.flatMap { Self.extendedProfile(of: $0) }
+        let sony = pad is GCDualSenseGamepad || pad is GCDualShockGamepad
         let kind: String
         switch mode.value {
         case "dualsense", "generic": kind = mode.value
@@ -198,12 +204,22 @@ final class GamepadInput: @unchecked Sendable {
     @MainActor private var observers: [NSObjectProtocol] = []
     @MainActor private var started = false
 
+    /// Xbox and other MFi pads sometimes connect before `extendedGamepad` is
+    /// filled; touching the physical profile wakes it.
+    static func extendedProfile(of controller: GCController) -> GCExtendedGamepad? {
+        if let pad = controller.extendedGamepad { return pad }
+        _ = controller.physicalInputProfile
+        return controller.extendedGamepad
+    }
+
     @MainActor func start() {
         guard !started else { return }
         started = true
         LogStore.shared.log("[xinput] ml1920 physical controllers enabled=\(Self.enabled ? 1 : 0)")
         LogStore.shared.log("[touch-xinput] ml1930 enabled=\(Self.touchEnabled ? 1 : 0)")
         guard Self.enabled else { return }
+        GCController.shouldMonitorBackgroundEvents = true
+        GCController.startWirelessControllerDiscovery(completionHandler: nil)
         let center = NotificationCenter.default
         for name in [Notification.Name.GCControllerDidConnect, .GCControllerDidDisconnect] {
             observers.append(center.addObserver(forName: name, object: nil, queue: .main) { [weak self] _ in
@@ -228,7 +244,10 @@ final class GamepadInput: @unchecked Sendable {
         // Capture the live profile on main. Re-fetching extendedGamepad on the
         // polling queue yielded stale axes on devices tested in the fork.
         let live = GCController.controllers().compactMap { controller -> (GCController, GCExtendedGamepad)? in
-            guard let profile = controller.extendedGamepad else { return nil }
+            guard let profile = Self.extendedProfile(of: controller) else {
+                fputs("[xinput] ml1920 ignored pad vendor=\(controller.vendorName ?? "?") category=\(controller.productCategory) (no extendedGamepad)\n", stderr)
+                return nil
+            }
             controller.handlerQueue = queue
             return (controller, profile)
         }

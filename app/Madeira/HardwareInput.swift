@@ -1990,9 +1990,9 @@ final class PadStickMouse: ObservableObject {
     /// The live profile is captured on main (re-fetching it elsewhere yielded
     /// stale axes on devices tested in the fork, see GamepadInput).
     private func refreshControllers() {
-        let pads = GCController.controllers().filter { $0.extendedGamepad != nil }
+        let pads = GCController.controllers().filter { GamepadInput.extendedProfile(of: $0) != nil }
         let current = GCController.current.flatMap { c in pads.contains { $0 === c } ? c : nil }
-        profile = (current ?? pads.first)?.extendedGamepad
+        profile = (current ?? pads.first).flatMap { GamepadInput.extendedProfile(of: $0) }
         let connected = profile != nil
         if connected != controllerConnected {
             controllerConnected = connected

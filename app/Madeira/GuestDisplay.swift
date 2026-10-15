@@ -303,10 +303,13 @@ enum DevicePlayProfile {
     }
 }
 
-/// Unity (and similar) installs added from drive_c, without Steam.
+/// Unity and Unreal installs added from drive_c, without Steam.
 enum GameEnginePreset {
     static func isCrashHandler(_ url: URL) -> Bool {
-        url.deletingPathExtension().lastPathComponent.lowercased().hasPrefix("unitycrashhandler")
+        let name = url.deletingPathExtension().lastPathComponent.lowercased()
+        return name.hasPrefix("unitycrashhandler")
+            || name == "crashreportclient"
+            || name.hasPrefix("unrealcefsubprocess")
     }
 
     static func isUnity(at executable: URL) -> Bool {
@@ -359,6 +362,128 @@ enum GameEnginePreset {
         let size = resolution.lowercased().split(separator: "x").compactMap { Int($0) }
         if size.count == 2, !has("-screen-width") {
             parts.append(contentsOf: ["-screen-width", String(size[0]), "-screen-height", String(size[1])])
+        }
+        return parts.joined(separator: " ")
+    }
+
+    static func isUnreal(relativePath: String) -> Bool {
+        let url = LibraryEntry.hostDrive.appendingPathComponent(relativePath)
+        var isDir: ObjCBool = false
+        guard FileManager.default.fileExists(atPath: url.path, isDirectory: &isDir) else { return false }
+        if isDir.boolValue { return isUnrealFolder(url) || shippingExecutables(under: url).first != nil }
+        return isUnreal(at: url)
+    }
+
+    static func isUnreal(at executable: URL) -> Bool {
+        let name = executable.deletingPathExtension().lastPathComponent.lowercased()
+        if name.contains("win64-shipping") || name.contains("win64-test") { return true }
+        let folder = executable.deletingLastPathComponent()
+        if folder.lastPathComponent.lowercased() == "win64",
+           folder.deletingLastPathComponent().lastPathComponent.lowercased() == "binaries" {
+            return true
+        }
+        return isUnrealFolder(folder) || shippingExecutable(from: executable) != nil
+    }
+
+    static func isUnrealFolder(_ folder: URL) -> Bool {
+        let fm = FileManager.default
+        for name in ["UnrealCEFSubProcess.exe", "CrashReportClient.exe", "UE4PrereqSetup_x64.exe", "UE5PrereqSetup_x64.exe"] {
+            if fm.fileExists(atPath: folder.appendingPathComponent(name).path) { return true }
+        }
+        var isDir: ObjCBool = false
+        if fm.fileExists(atPath: folder.appendingPathComponent("Engine/Binaries").path, isDirectory: &isDir), isDir.boolValue {
+            return true
+        }
+        if let items = try? fm.contentsOfDirectory(at: folder, includingPropertiesForKeys: [.isDirectoryKey], options: [.skipsHiddenFiles]) {
+            for item in items {
+                let win64 = item.appendingPathComponent("Binaries/Win64")
+                if fm.fileExists(atPath: win64.path, isDirectory: &isDir), isDir.boolValue { return true }
+            }
+        }
+        return false
+    }
+
+    /// Game install root: parent of `<Project>/Binaries/Win64`, else the exe folder.
+    static func installRoot(from executable: URL) -> URL {
+        var folder = executable.deletingLastPathComponent()
+        if folder.lastPathComponent.lowercased() == "win64" {
+            let binaries = folder.deletingLastPathComponent()
+            if binaries.lastPathComponent.lowercased() == "binaries" {
+                return binaries.deletingLastPathComponent().deletingLastPathComponent()
+            }
+        }
+        return folder
+    }
+
+    /// `Project/Binaries/Win64/*-Win64-Shipping.exe` under the install root.
+    static func shippingExecutable(from executable: URL) -> URL? {
+        let name = executable.lastPathComponent.lowercased()
+        if name.hasSuffix("-win64-shipping.exe") { return executable }
+        let root = installRoot(from: executable)
+        return shippingExecutables(under: root).first
+    }
+
+    static func shippingExecutables(under root: URL, limit: Int = 8) -> [URL] {
+        let fm = FileManager.default
+        guard let enumerator = fm.enumerator(
+            at: root,
+            includingPropertiesForKeys: [.isDirectoryKey],
+            options: [.skipsHiddenFiles]
+        ) else { return [] }
+        let skip = Set(["engine", "easyanticheat", "saved", "intermediate", "deriveddatacache", "content"])
+        var found: [URL] = []
+        while let url = enumerator.nextObject() as? URL {
+            let isDir = (try? url.resourceValues(forKeys: [.isDirectoryKey]).isDirectory) ?? false
+            if isDir {
+                if skip.contains(url.lastPathComponent.lowercased()) { enumerator.skipDescendants() }
+                continue
+            }
+            if url.lastPathComponent.lowercased().hasSuffix("-win64-shipping.exe") {
+                found.append(url)
+                if found.count >= limit { break }
+            }
+        }
+        return found
+    }
+
+    static func preferredLaunchRelativePath(from relativePath: String) -> String? {
+        let url = LibraryEntry.hostDrive.appendingPathComponent(relativePath)
+        guard FileManager.default.fileExists(atPath: url.path),
+              let shipping = shippingExecutable(from: url) else { return nil }
+        let drive = LibraryEntry.hostDrive.resolvingSymlinksInPath().path
+        let path = shipping.resolvingSymlinksInPath().path
+        guard path.hasPrefix(drive + "/") else { return nil }
+        let relative = String(path.dropFirst(drive.count + 1))
+        if relative.caseInsensitiveCompare(relativePath) == .orderedSame { return nil }
+        return relative
+    }
+
+    static func projectName(forShipping url: URL) -> String? {
+        let win64 = url.deletingLastPathComponent()
+        guard win64.lastPathComponent.lowercased() == "win64" else { return nil }
+        let binaries = win64.deletingLastPathComponent()
+        guard binaries.lastPathComponent.lowercased() == "binaries" else { return nil }
+        let project = binaries.deletingLastPathComponent().lastPathComponent
+        return project.isEmpty ? nil : project
+    }
+
+    /// DX11 windowed: DXMT's path. -ansimalloc avoids UE5 FMallocBinned2 fatals seen on Valley.
+    static func unrealArguments(_ existing: String, project: String?) -> String {
+        var parts = tokens(existing)
+        let lower = Set(parts.map { $0.lowercased() })
+        func has(_ names: String...) -> Bool { names.contains { lower.contains($0) } }
+        if let project, !project.isEmpty {
+            let hasProject = parts.contains { !$0.hasPrefix("-") && $0.caseInsensitiveCompare(project) == .orderedSame }
+            if !hasProject { parts.insert(project, at: 0) }
+        }
+        if !has("-dx11", "-dx12", "-dx10", "-dx9", "-d3d11", "-d3d12", "-vulkan", "-opengl") {
+            parts.append("-dx11")
+        }
+        if !has("-windowed", "-fullscreen") {
+            parts.append("-windowed")
+        }
+        if !has("-ansimalloc", "-binnedmalloc2", "-binnedmalloc", "-mimalloc") {
+            parts.append("-ansimalloc")
         }
         return parts.joined(separator: " ")
     }

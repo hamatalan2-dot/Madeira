@@ -956,6 +956,22 @@ static void ios_dev_start(void)
     pthread_mutex_unlock(&g_dev_lock);
 }
 
+/* Session interruptions and StikDebug leave RemoteIO stopped while Wine still
+ * thinks the stream is started. Clear the permanent-fail latch so the next
+ * client can create the unit, and restart it if it already exists. */
+void ios_audio_resume(void)
+{
+    pthread_mutex_lock(&g_dev_lock);
+    g_dev.failed = 0;
+    if (g_dev.au) {
+        OSStatus err = AudioOutputUnitStart(g_dev.au);
+        if (!err) g_dev.running = 1;
+        fprintf(stderr, "[ios_audio] resume AudioOutputUnitStart=%d running=%d\n",
+                (int)err, g_dev.running);
+    }
+    pthread_mutex_unlock(&g_dev_lock);
+}
+
 static void ios_dev_stop_if_idle(void)
 {
     int i, any = 0;

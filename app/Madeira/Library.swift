@@ -351,8 +351,14 @@ struct LibraryEntry: Codable, Identifiable {
     /// else the entry's Launch arguments.
     var programArguments: String {
         let base = startsSteamGameDirectly ? (steamProgramArguments ?? "") : arguments
-        guard GameEnginePreset.isUnity(relativePath: launchRelativePath) else { return base }
-        return GameEnginePreset.unityArguments(base, resolution: resolution)
+        if GameEnginePreset.isUnity(relativePath: launchRelativePath) {
+            return GameEnginePreset.unityArguments(base, resolution: resolution)
+        }
+        if GameEnginePreset.isUnreal(relativePath: launchRelativePath) {
+            let url = Self.hostDrive.appendingPathComponent(launchRelativePath)
+            return GameEnginePreset.unrealArguments(base, project: GameEnginePreset.projectName(forShipping: url))
+        }
+        return base
     }
     /// ml1163: the directory the program starts in (MADEIRA_WORKDIR): the chosen
     /// working folder, else Steam's for "The game", else the program's own folder.
@@ -456,8 +462,11 @@ struct LibraryEntry: Codable, Identifiable {
     /// What a launch starts, relative to drive_c: "The game"'s program inside the
     /// install folder, else `relativePath`.
     var launchRelativePath: String {
-        guard startsSteamGameDirectly, let program = steamProgram, !program.isEmpty else { return relativePath }
-        return relativePath + "/" + program
+        let selected: String = {
+            guard startsSteamGameDirectly, let program = steamProgram, !program.isEmpty else { return relativePath }
+            return relativePath + "/" + program
+        }()
+        return GameEnginePreset.preferredLaunchRelativePath(from: selected) ?? selected
     }
     var launchWindowsPath: String { "C:\\" + launchRelativePath.replacingOccurrences(of: "/", with: "\\") }
 
@@ -472,23 +481,34 @@ struct LibraryEntry: Codable, Identifiable {
               let executable = try? LibraryModel.executable(launchRelativePath) else { return nil }
 
         let drive = LibraryModel.drive.standardizedFileURL
-        let folder = executable.deletingLastPathComponent().standardizedFileURL
-        guard folder.path.hasPrefix(drive.path + "/") else { return nil }
+        var folders: [URL] = [executable.deletingLastPathComponent().standardizedFileURL]
+        let install = GameEnginePreset.installRoot(from: executable).standardizedFileURL
+        if !folders.contains(where: { $0.path.caseInsensitiveCompare(install.path) == .orderedSame }) {
+            folders.append(install)
+        }
+        for folder in folders {
+            guard folder.path.hasPrefix(drive.path + "/"),
+                  let appID = Self.steamAppID(in: folder) else { continue }
+            let pathFolder = GameEnginePreset.isUnreal(at: executable) ? install : folder
+            guard pathFolder.path.hasPrefix(drive.path + "/") else { continue }
+            let relativeFolder = String(pathFolder.path.dropFirst(drive.path.count + 1))
+            let windowsFolder = "C:\\" + relativeFolder.replacingOccurrences(of: "/", with: "\\")
+            return (appID, windowsFolder)
+        }
+        return nil
+    }
 
+    static func steamAppID(in folder: URL) -> String? {
         let sidecar = folder.appendingPathComponent("steam_appid.txt", isDirectory: false)
         guard let attributes = try? FileManager.default.attributesOfItem(atPath: sidecar.path),
               let fileSize = attributes[.size] as? NSNumber,
               fileSize.intValue > 0, fileSize.intValue <= 64,
               let contents = try? String(contentsOf: sidecar, encoding: .utf8) else { return nil }
-
         let appID = contents.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !appID.isEmpty, appID.utf8.count <= 10,
               appID.utf8.allSatisfy({ $0 >= 48 && $0 <= 57 }),
               let numericID = Int(appID), numericID > 0 else { return nil }
-
-        let relativeFolder = String(folder.path.dropFirst(drive.path.count + 1))
-        let windowsFolder = "C:\\" + relativeFolder.replacingOccurrences(of: "/", with: "\\")
-        return (appID, windowsFolder)
+        return appID
     }
     /// "The game"'s working folder as a Windows path, or nil for the program's own folder.
     var steamWorkingWindowsPath: String? {
@@ -562,12 +582,21 @@ struct LibraryEntry: Codable, Identifiable {
     /// Runs on the launch worker, before the JIT pool is taken.
     func applyEnvironment() {
         configureLaunch()
+        let selectedLaunch: String = {
+            guard startsSteamGameDirectly, let program = steamProgram, !program.isEmpty else { return relativePath }
+            return relativePath + "/" + program
+        }()
+        if let shipping = GameEnginePreset.preferredLaunchRelativePath(from: selectedLaunch) {
+            LogStore.shared.log("[unreal] launching \(shipping) instead of \(selectedLaunch)")
+        }
         // Unset unless chosen: FEX's own default then applies, as for any other launch.
         if reducedX87 { setenv("FEX_X87REDUCEDPRECISION", "1", 1) } else { unsetenv("FEX_X87REDUCEDPRECISION") }
         // Unity launchers often start the real player and exit; keep the session
         // for that child. Unset for other games so madeira.cfg can still opt in.
-        if GameEnginePreset.isUnity(relativePath: launchRelativePath) { setenv("MADEIRA_WAIT_CHILDREN", "1", 1) }
-        else { unsetenv("MADEIRA_WAIT_CHILDREN") }
+        if GameEnginePreset.isUnity(relativePath: launchRelativePath)
+            || GameEnginePreset.isUnreal(relativePath: launchRelativePath) {
+            setenv("MADEIRA_WAIT_CHILDREN", "1", 1)
+        } else { unsetenv("MADEIRA_WAIT_CHILDREN") }
         // Exported only when chosen: unset keeps the engine's own default (and any
         // madeira.cfg setting), as before these choices existed.
         // Unset otherwise, so a previous game's choice (a launch that died before the
@@ -584,7 +613,9 @@ struct LibraryEntry: Codable, Identifiable {
         if let anisotropyLimit, [1, 2, 4, 8].contains(anisotropyLimit) { setenv("DXMT_D9_ANISO_LIMIT", String(anisotropyLimit), 1) }
         else { unsetenv("DXMT_D9_ANISO_LIMIT") }
         // Set or unset, so a previous session's choice never stays.
-        if avx == true { setenv("MADEIRA_FEX_AVX", "1", 1) } else { unsetenv("MADEIRA_FEX_AVX") }
+        if avx == true || GameEnginePreset.isUnreal(relativePath: launchRelativePath) {
+            setenv("MADEIRA_FEX_AVX", "1", 1)
+        } else { unsetenv("MADEIRA_FEX_AVX") }
         if frameGeneration == true { setenv("MADEIRA_FRAMEGEN", "1", 1) } else { unsetenv("MADEIRA_FRAMEGEN") }
         // "Report an NVIDIA GPU": DXMT's vendor extension (DXGI vendor 10DE,
         // NVAPI), with DXGI's output carrying user32's monitor and mode list so
@@ -683,6 +714,10 @@ struct LibraryEntry: Codable, Identifiable {
             frameGeneration = nil
         }
         if GameEnginePreset.isUnity(relativePath: relativePath) {
+            reportNVIDIA = true
+        }
+        if GameEnginePreset.isUnreal(relativePath: relativePath) {
+            avx = true
             reportNVIDIA = true
         }
     }
@@ -947,7 +982,7 @@ final class LibraryModel: ObservableObject {
             throw LibraryError.message("The executable must be inside drive_c.")
         }
         if GameEnginePreset.isCrashHandler(url) {
-            throw LibraryError.message("That is Unity's crash reporter, not the game. Choose the game's .exe in the same folder as UnityPlayer.dll (or the *_Data folder).")
+            throw LibraryError.message("That is a crash reporter, not the game. For Unity choose the .exe next to UnityPlayer.dll (or the *_Data folder). For Unreal choose the *-Win64-Shipping.exe under Binaries\\Win64.")
         }
         if ["bat", "cmd"].contains(url.pathExtension.lowercased()) {
             // ml1163: a batch file has no PE header. Like every entry it starts
@@ -3026,6 +3061,9 @@ struct LibraryDetail: View {
                         Text("Passed to the program on every start; the line above is the command that runs. The flags add or remove themselves; the renderer flags exclude each other, as do -windowed and -fullscreen.")
                         if GameEnginePreset.isUnity(relativePath: entry.launchRelativePath) {
                             Text("Unity: Madeira adds -force-d3d11, a window, and -screen-width/-screen-height to match Resolution, unless you already set a renderer or those flags. Put steam_appid.txt next to the .exe if the game needs a Steam App ID without Steam.")
+                        }
+                        if GameEnginePreset.isUnreal(relativePath: entry.launchRelativePath) {
+                            Text("Unreal: Madeira starts *-Win64-Shipping.exe when it finds one, turns on AVX, and adds the project name, -dx11, -windowed, and -ansimalloc unless you already set a renderer or those flags. Direct3D 12 is not the default path.")
                         }
                     }
                 }

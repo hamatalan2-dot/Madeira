@@ -11,6 +11,7 @@
  * in via autolink — the static-lib driver code can't autolink itself. */
 #import <AVFoundation/AVFoundation.h>
 #import <AudioToolbox/AudioToolbox.h>
+#import <UIKit/UIKit.h>
 #include <unistd.h>
 #include <pwd.h>
 #include <fcntl.h>
@@ -48,6 +49,51 @@ static os_log_t wine_proc_log(void) {
 }
 
 #define LOG(fmt, ...) os_log(wine_proc_log(), "[WineProc] " fmt, ##__VA_ARGS__)
+
+void ios_audio_resume(void);
+
+void madeira_audio_activate(const char *reason)
+{
+    static dispatch_once_t once;
+    NSError *aerr = nil;
+    AVAudioSession *session = [AVAudioSession sharedInstance];
+    [session setCategory:AVAudioSessionCategoryPlayback
+                    mode:AVAudioSessionModeDefault
+                 options:AVAudioSessionCategoryOptionMixWithOthers
+                   error:&aerr];
+    if (aerr) LOG("AVAudioSession setCategory failed: %{public}s",
+                  aerr.localizedDescription.UTF8String);
+    aerr = nil;
+    [session setActive:YES error:&aerr];
+    if (aerr) LOG("AVAudioSession setActive failed: %{public}s (%{public}s)",
+                  aerr.localizedDescription.UTF8String, reason ? reason : "");
+    else LOG("AVAudioSession active: rate=%.0f latency=%.1fms reason=%{public}s",
+             session.sampleRate, session.outputLatency * 1000.0, reason ? reason : "");
+    ios_audio_resume();
+
+    dispatch_once(&once, ^{
+        NSNotificationCenter *center = [NSNotificationCenter defaultCenter];
+        [center addObserverForName:AVAudioSessionInterruptionNotification
+                            object:session queue:nil
+                        usingBlock:^(NSNotification *note) {
+            NSInteger type = [note.userInfo[AVAudioSessionInterruptionTypeKey] integerValue];
+            if (type == AVAudioSessionInterruptionTypeEnded)
+                madeira_audio_activate("interruption-ended");
+        }];
+        [center addObserverForName:AVAudioSessionMediaServicesWereResetNotification
+                            object:session queue:nil
+                        usingBlock:^(NSNotification *note) {
+            (void)note;
+            madeira_audio_activate("media-reset");
+        }];
+        [center addObserverForName:UIApplicationDidBecomeActiveNotification
+                            object:nil queue:nil
+                        usingBlock:^(NSNotification *note) {
+            (void)note;
+            madeira_audio_activate("became-active");
+        }];
+    });
+}
 
 /* ---- ml581: undo the hand-made AppData skeleton ------------------------
  *
@@ -965,22 +1011,9 @@ static void *wine_process_thread(void *arg) {
          * MADV_FREE/MADV_FREE_REUSE pair). Probe machinery stays in
          * ntdll-unix, gated on MADEIRA_SHARE_PROBE — set it here to re-run. */
 
-        /* 2026-07-05 audio: activate the AVAudioSession before Wine boots
-         * so the RemoteIO unit in the mmdevapi driver can start. Playback
-         * category = ignores silent switch (it's a game). */
-        {
-            NSError *aerr = nil;
-            AVAudioSession *session = [AVAudioSession sharedInstance];
-            [session setCategory:AVAudioSessionCategoryPlayback error:&aerr];
-            if (aerr) LOG("AVAudioSession setCategory failed: %{public}s",
-                          aerr.localizedDescription.UTF8String);
-            aerr = nil;
-            [session setActive:YES error:&aerr];
-            if (aerr) LOG("AVAudioSession setActive failed: %{public}s",
-                          aerr.localizedDescription.UTF8String);
-            else LOG("AVAudioSession active: rate=%.0f latency=%.1fms",
-                     session.sampleRate, session.outputLatency * 1000.0);
-        }
+        /* Activate before Wine boots so RemoteIO can start. MixWithOthers so
+         * returning from StikDebug/JIT does not fail to reclaim the session. */
+        madeira_audio_activate("wine-start");
 
         /* 2026-07-04 BISECT RESULT: arm A (this env set, all handler fixes
          * on) booted to menu at 17-18 FPS with the x18-access emulator
@@ -1031,34 +1064,28 @@ static void *wine_process_thread(void *arg) {
          * and this launch publishes the game's own identity instead of the fixed one. Both
          * are cleared here, so no later launch inherits them. */
         const char *dock_session = getenv("MADEIRA_DOCK_SESSION");
-         const char *direct_app = getenv("MADEIRA_STEAM_APPID");    /* set by the library for one direct Steam start (Start with: The game); not a setting */
-         const char *direct_path = getenv("MADEIRA_STEAM_APPPATH"); /* that game's install folder, with MADEIRA_STEAM_APPID; not a setting */
-+
-+        /* Reset identity on every launch: the app and Wine run in one process. */
-+        unsetenv("SteamAppPath");
-+        unsetenv("SteamGameId");
-+        unsetenv("SteamAppId");
-         if (dock_session && dock_session[0] == '1') {
--            unsetenv("SteamAppPath");
--            unsetenv("SteamGameId");
--            unsetenv("SteamAppId");
--            dprintf(STDERR_FILENO, "[steam-env] Madeira Dock session: no fixed Steam game identity published\n");
-+            dprintf(STDERR_FILENO, "[steam-env] Madeira Dock session: Steam identity left to Valve's client\n");
-         } else if (direct_app && direct_app[0] && strlen(direct_app) <= 10 &&
-             strspn(direct_app, "0123456789") == strlen(direct_app) &&
-             direct_path && (direct_path[0] == 'C' || direct_path[0] == 'c') && direct_path[1] == ':' &&
-             direct_path[2] == '\\' && strlen(direct_path) < 1024 && !strstr(direct_path, "..")) {
-             setenv("SteamAppPath", direct_path, 1);
-             setenv("SteamGameId", direct_app, 1);
-             setenv("SteamAppId",  direct_app, 1);
-             dprintf(STDERR_FILENO, "[steam-start] direct start: the game's own Steam identity (app %s) published\n", direct_app);
-         } else {
--            setenv("SteamAppPath", "C:\\Program Files\\Thumper", 1);
--            setenv("SteamGameId", "356400", 1);
--            setenv("SteamAppId",  "356400", 1);
-+            /* Don't give an unrelated game Thumper's identity as a fallback. */
-+            dprintf(STDERR_FILENO, "[steam-env] no per-game Steam identity; fixed defaults cleared\n");
-         }
+        const char *direct_app = getenv("MADEIRA_STEAM_APPID");    /* set by the library for one direct Steam start (Start with: The game); not a setting */
+        const char *direct_path = getenv("MADEIRA_STEAM_APPPATH"); /* that game's install folder, with MADEIRA_STEAM_APPID; not a setting */
+
+        /* Reset identity on every launch: the app and Wine run in one process.
+         * Unary +/- leftovers from a bad patch still called setenv(Thumper), so a
+         * manually added game inherited SteamAppId=356400. */
+        unsetenv("SteamAppPath");
+        unsetenv("SteamGameId");
+        unsetenv("SteamAppId");
+        if (dock_session && dock_session[0] == '1') {
+            dprintf(STDERR_FILENO, "[steam-env] Madeira Dock session: Steam identity left to Valve's client\n");
+        } else if (direct_app && direct_app[0] && strlen(direct_app) <= 10 &&
+            strspn(direct_app, "0123456789") == strlen(direct_app) &&
+            direct_path && (direct_path[0] == 'C' || direct_path[0] == 'c') && direct_path[1] == ':' &&
+            direct_path[2] == '\\' && strlen(direct_path) < 1024 && !strstr(direct_path, "..")) {
+            setenv("SteamAppPath", direct_path, 1);
+            setenv("SteamGameId", direct_app, 1);
+            setenv("SteamAppId",  direct_app, 1);
+            dprintf(STDERR_FILENO, "[steam-start] direct start: the game's own Steam identity (app %s) published\n", direct_app);
+        } else {
+            dprintf(STDERR_FILENO, "[steam-env] no per-game Steam identity; fixed defaults cleared\n");
+        }
 
         /* iOS-Madeira 2026-07-02: publish the TRUE JIT-pool RX->RW offset to
          * xtajit64.dll (its own FEXCore copy reads this via getenv in

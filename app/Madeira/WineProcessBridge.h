@@ -34,6 +34,9 @@ int madeira_write_continue_flag(void);
 // Madeira Dock's component setup calls it before writing Steam's registry keys.
 void madeira_seed_prefix_if_needed(const char *prefix_path);
 
+/* Game audio: category + session, and restart RemoteIO after interruptions. */
+void madeira_audio_activate(const char *reason);
+
 #ifdef __cplusplus
 }
 #endif
