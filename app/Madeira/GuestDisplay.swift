@@ -415,22 +415,46 @@ enum GameEnginePreset {
         return folder
     }
 
-    /// `Project/Binaries/Win64/*-Win64-Shipping.exe` under the install root.
+    /// Game client `*-Win64-Shipping.exe`, never dedicated server/editor.
     static func shippingExecutable(from executable: URL) -> URL? {
         let name = executable.lastPathComponent.lowercased()
-        if name.hasSuffix("-win64-shipping.exe") { return executable }
+        if isGameShipping(name) { return executable }
         let root = installRoot(from: executable)
-        return shippingExecutables(under: root).first
+        let clients = shippingExecutables(under: root).filter { isGameShipping($0.lastPathComponent) }
+        return clients.max(by: { shippingRank($0) < shippingRank($1) })
     }
 
-    static func shippingExecutables(under root: URL, limit: Int = 8) -> [URL] {
+    static func isGameShipping(_ filename: String) -> Bool {
+        let n = filename.lowercased()
+        guard n.hasSuffix("-win64-shipping.exe") else { return false }
+        return !n.contains("server") && !n.contains("editor") && !n.contains("crash")
+    }
+
+    /// Prefer NoEditor/Client binaries over a leftover WindowsServer tree.
+    static func shippingRank(_ url: URL) -> Int {
+        let n = url.lastPathComponent.lowercased()
+        let p = url.path.lowercased()
+        var score = 0
+        if isGameShipping(n) { score += 50 }
+        if n.contains("server") || p.contains("/windowsserver/") { score -= 100 }
+        if n.contains("editor") { score -= 100 }
+        if p.contains("windowsnoeditor") || p.contains("windowsclient") { score += 40 }
+        if p.contains("/binaries/win64/") { score += 20 }
+        if !p.contains("/builds/") { score += 10 }
+        return score
+    }
+
+    static func shippingExecutables(under root: URL, limit: Int = 16) -> [URL] {
         let fm = FileManager.default
         guard let enumerator = fm.enumerator(
             at: root,
             includingPropertiesForKeys: [.isDirectoryKey],
             options: [.skipsHiddenFiles]
         ) else { return [] }
-        let skip = Set(["engine", "easyanticheat", "saved", "intermediate", "deriveddatacache", "content"])
+        let skip = Set([
+            "engine", "easyanticheat", "saved", "intermediate", "deriveddatacache", "content",
+            "windowsserver", "linuxserver", "windowseditor",
+        ])
         var found: [URL] = []
         while let url = enumerator.nextObject() as? URL {
             let isDir = (try? url.resourceValues(forKeys: [.isDirectoryKey]).isDirectory) ?? false
@@ -438,10 +462,10 @@ enum GameEnginePreset {
                 if skip.contains(url.lastPathComponent.lowercased()) { enumerator.skipDescendants() }
                 continue
             }
-            if url.lastPathComponent.lowercased().hasSuffix("-win64-shipping.exe") {
-                found.append(url)
-                if found.count >= limit { break }
-            }
+            let name = url.lastPathComponent.lowercased()
+            guard name.hasSuffix("-win64-shipping.exe") else { continue }
+            found.append(url)
+            if found.count >= limit { break }
         }
         return found
     }
