@@ -1314,7 +1314,7 @@ NTSTATUS WINAPI NtCreateUserProcess( HANDLE *process_handle_ptr, HANDLE *thread_
                 }
                 if (!has_dx)
                 {
-                    WCHAR *nbuf = RtlAllocateHeap( GetProcessHeap(), 0, (cl_len + el + 1) * sizeof(WCHAR) );
+                    WCHAR *nbuf = malloc( (cl_len + el + 1) * sizeof(WCHAR) );
                     if (nbuf)
                     {
                         memcpy( nbuf, cl, cl_len * sizeof(WCHAR) );
