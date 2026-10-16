@@ -104,6 +104,18 @@ int madeira_host_browser_active(void)
     return g_host_browser_active;
 }
 
+void madeira_host_browser_dismiss(void)
+{
+    dispatch_async(dispatch_get_main_queue(), ^{
+        if (!g_host_browser_active && !g_host_browser_vc) return;
+        g_host_browser_active = 0;
+        UIViewController *vc = g_host_browser_vc;
+        g_host_browser_vc = nil;
+        [vc dismissViewControllerAnimated:YES completion:nil];
+        dprintf(STDERR_FILENO, "[winebrowser] dismissed overlay (game started)\n");
+    });
+}
+
 @interface MadeiraHostBrowserVC : UIViewController <WKNavigationDelegate>
 @property (nonatomic, copy) NSString *urlString;
 @property (nonatomic, strong) WKWebView *web;

@@ -42,6 +42,8 @@ void madeira_audio_activate(const char *reason);
 int madeira_open_http_url(const char *url);
 /* Non-zero while that overlay is on screen (do not inject touches into Wine). */
 int madeira_host_browser_active(void);
+/* Close it when the game process starts (EOSAuthLauncher spawned the shipping exe). */
+void madeira_host_browser_dismiss(void);
 
 #ifdef __cplusplus
 }

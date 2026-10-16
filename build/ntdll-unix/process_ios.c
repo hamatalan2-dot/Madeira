@@ -1255,6 +1255,81 @@ NTSTATUS WINAPI NtCreateUserProcess( HANDLE *process_handle_ptr, HANDLE *thread_
     }
     madeira_steam_session_log( &params->ImagePathName );
 
+    /* Unreal shipping started by EOSAuthLauncher: drop the Epic overlay and
+     * add DXMT's flags (the launcher's own cmdline has none of them). */
+    {
+        const WCHAR *ip = params->ImagePathName.Buffer;
+        int ip_len = params->ImagePathName.Length / sizeof(WCHAR);
+        int is_shipping = 0, k, j;
+        static const char ship[] = "-win64-shipping.exe";
+        static const char skip[] = "server";
+        int sl = (int)sizeof(ship) - 1, skipl = (int)sizeof(skip) - 1;
+        for (k = 0; k + sl <= ip_len && !is_shipping; k++)
+        {
+            for (j = 0; j < sl; j++)
+            {
+                WCHAR c = ip[k + j];
+                if (c >= 'A' && c <= 'Z') c += 32;
+                if (c != (WCHAR)ship[j]) break;
+            }
+            if (j == sl) is_shipping = 1;
+        }
+        if (is_shipping)
+        {
+            int is_server = 0;
+            for (k = 0; k + skipl <= ip_len && !is_server; k++)
+            {
+                for (j = 0; j < skipl; j++)
+                {
+                    WCHAR c = ip[k + j];
+                    if (c >= 'A' && c <= 'Z') c += 32;
+                    if (c != (WCHAR)skip[j]) break;
+                }
+                if (j == skipl) is_server = 1;
+            }
+            if (!is_server)
+            {
+                extern void madeira_host_browser_dismiss(void);
+                const WCHAR *cl = params->CommandLine.Buffer;
+                int cl_len = params->CommandLine.Length / sizeof(WCHAR);
+                static const char extra[] = " -dx11 -windowed -ansimalloc";
+                int el = (int)sizeof(extra) - 1;
+                int has_dx = 0;
+                static const char * const dx[] = { "-dx11", "-dx12", "-dx10", "-dx9", "-d3d11", "-d3d12" };
+                unsigned d;
+                madeira_host_browser_dismiss();
+                for (d = 0; d < sizeof(dx)/sizeof(dx[0]) && !has_dx; d++)
+                {
+                    int dl = (int)strlen( dx[d] );
+                    for (k = 0; k + dl <= cl_len && !has_dx; k++)
+                    {
+                        for (j = 0; j < dl; j++)
+                        {
+                            WCHAR c = cl[k + j];
+                            if (c >= 'A' && c <= 'Z') c += 32;
+                            if (c != (WCHAR)dx[d][j]) break;
+                        }
+                        if (j == dl) has_dx = 1;
+                    }
+                }
+                if (!has_dx)
+                {
+                    WCHAR *nbuf = RtlAllocateHeap( GetProcessHeap(), 0, (cl_len + el + 1) * sizeof(WCHAR) );
+                    if (nbuf)
+                    {
+                        memcpy( nbuf, cl, cl_len * sizeof(WCHAR) );
+                        for (j = 0; j < el; j++) nbuf[cl_len + j] = (WCHAR)extra[j];
+                        nbuf[cl_len + el] = 0;
+                        params->CommandLine.Buffer = nbuf;
+                        params->CommandLine.Length = (cl_len + el) * sizeof(WCHAR);
+                        params->CommandLine.MaximumLength = params->CommandLine.Length + sizeof(WCHAR);
+                        dprintf( 2, "[unreal] child cmdline +%s\n", extra );
+                    }
+                }
+            }
+        }
+    }
+
     /* task #34 single-process CEF: the 64GB VA window above the GPU carveout
      * can hold exactly ONE CEF instance's PartitionAlloc pools + one V8
      * sandbox (see virtual_ios.c slot allocator). Force steamwebhelper into
