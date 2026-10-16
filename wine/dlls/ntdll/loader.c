@@ -1415,6 +1415,39 @@ static BOOL import_dll( WINE_MODREF *wm, const IMAGE_IMPORT_DESCRIPTOR *descr, L
 
     if (status)
     {
+        /* Unity IL2CPP (GameAssembly.dll) imports api-ms-win-core-winrt-robuffer
+         * which resolves to wintypes.dll. That builtin is not in this PE farm.
+         * Stub the IAT so the game can load; a real wintypes.dll still wins if present. */
+        int stub_winrt = (status == STATUS_DLL_NOT_FOUND) && name &&
+            (!_strnicmp( name, "api-ms-win-core-winrt-", 22 ) ||
+             !_strnicmp( name, "api-ms-win-ro-", 14 ) ||
+             !_strnicmp( name, "ext-ms-win-ro-", 14 ) ||
+             !_stricmp( name, "wintypes.dll" ));
+        if (stub_winrt)
+        {
+            ERR("[il2cpp] missing %s for %s — stubbing imports\n",
+                name, debugstr_w(wm->ldr.FullDllName.Buffer));
+            while (import_list[protect_size].u1.Ordinal) protect_size++;
+            protect_base = thunk_list;
+            protect_size *= sizeof(*thunk_list);
+            NtProtectVirtualMemory( NtCurrentProcess(), &protect_base,
+                                    &protect_size, PAGE_READWRITE, &protect_old );
+            while (import_list->u1.Ordinal)
+            {
+                if (IMAGE_SNAP_BY_ORDINAL(import_list->u1.Ordinal))
+                    thunk_list->u1.Function = allocate_stub( name, IntToPtr(IMAGE_ORDINAL(import_list->u1.Ordinal)) );
+                else
+                {
+                    IMAGE_IMPORT_BY_NAME *pe_name = get_rva( module, (DWORD)import_list->u1.AddressOfData );
+                    thunk_list->u1.Function = allocate_stub( name, (const char*)pe_name->Name );
+                }
+                import_list++;
+                thunk_list++;
+            }
+            NtProtectVirtualMemory( NtCurrentProcess(), &protect_base, &protect_size, protect_old, &protect_old );
+            *pwm = NULL;
+            return TRUE;
+        }
         if (status == STATUS_DLL_NOT_FOUND)
             ERR("Library %s (which is needed by %s) not found\n",
                 name, debugstr_w(wm->ldr.FullDllName.Buffer));

@@ -1292,11 +1292,12 @@ NTSTATUS WINAPI NtCreateUserProcess( HANDLE *process_handle_ptr, HANDLE *thread_
                 extern void madeira_host_browser_dismiss(void);
                 const WCHAR *cl = params->CommandLine.Buffer;
                 int cl_len = params->CommandLine.Length / sizeof(WCHAR);
-                static const char extra[] = " -dx11 -windowed -ansimalloc";
-                int el = (int)sizeof(extra) - 1;
-                int has_dx = 0;
+                char extra[160];
+                int el, has_dx = 0, has_win = 0, has_res = 0;
                 static const char * const dx[] = { "-dx11", "-dx12", "-dx10", "-dx9", "-d3d11", "-d3d12" };
                 unsigned d;
+                const char *sw = getenv( "MADEIRA_SCREEN_W" ), *sh = getenv( "MADEIRA_SCREEN_H" );
+                int rw = sw ? atoi( sw ) : 0, rh = sh ? atoi( sh ) : 0;
                 madeira_host_browser_dismiss();
                 for (d = 0; d < sizeof(dx)/sizeof(dx[0]) && !has_dx; d++)
                 {
@@ -1312,7 +1313,39 @@ NTSTATUS WINAPI NtCreateUserProcess( HANDLE *process_handle_ptr, HANDLE *thread_
                         if (j == dl) has_dx = 1;
                     }
                 }
-                if (!has_dx)
+                for (k = 0; k + 9 <= cl_len && !has_win; k++)
+                {
+                    static const char win[] = "-windowed";
+                    for (j = 0; j < 9; j++)
+                    {
+                        WCHAR c = cl[k + j];
+                        if (c >= 'A' && c <= 'Z') c += 32;
+                        if (c != (WCHAR)win[j]) break;
+                    }
+                    if (j == 9) has_win = 1;
+                }
+                for (k = 0; k + 6 <= cl_len && !has_res; k++)
+                {
+                    static const char rx[] = "-resx=";
+                    for (j = 0; j < 6; j++)
+                    {
+                        WCHAR c = cl[k + j];
+                        if (c >= 'A' && c <= 'Z') c += 32;
+                        if (c != (WCHAR)rx[j]) break;
+                    }
+                    if (j == 6) has_res = 1;
+                }
+                /* UE5 SM6 (Windrose) rejects -dx11. D3D12 + window at the session size. */
+                if (!has_res && rw >= 320 && rh >= 180 && rw <= 3840 && rh <= 2160)
+                    el = snprintf( extra, sizeof(extra), "%s%s -ResX=%d -ResY=%d -forceres",
+                                   has_dx ? "" : " -dx12",
+                                   has_win ? "" : " -windowed -ansimalloc",
+                                   rw, rh );
+                else
+                    el = snprintf( extra, sizeof(extra), "%s%s",
+                                   has_dx ? "" : " -dx12",
+                                   has_win ? "" : " -windowed -ansimalloc" );
+                if (el > 0)
                 {
                     WCHAR *nbuf = malloc( (cl_len + el + 1) * sizeof(WCHAR) );
                     if (nbuf)

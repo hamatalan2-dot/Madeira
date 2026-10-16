@@ -547,7 +547,7 @@ enum GameEnginePreset {
             if !hasProject { parts.insert(project, at: 0) }
         }
         if !has("-dx11", "-dx12", "-dx10", "-dx9", "-d3d11", "-d3d12", "-vulkan", "-opengl") {
-            parts.append("-dx11")
+            parts.append("-dx12")
         }
         if !has("-windowed", "-fullscreen") {
             parts.append("-windowed")
