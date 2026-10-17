@@ -617,6 +617,10 @@ struct LibraryEntry: Codable, Identifiable {
         // Unset otherwise, so a previous game's choice (a launch that died before the
         // session-end unset) never beats madeira.cfg for this one.
         if let cpuCount, (1..<64).contains(cpuCount) { setenv("MADEIRA_CPU_COUNT", String(cpuCount), 1) }
+        else if GameEnginePreset.isUnity(relativePath: launchRelativePath), DevicePlayProfile.memoryConstrained {
+            // Unity otherwise starts ~16 Job.Workers; 6 GB phones jetsam during the black load.
+            setenv("MADEIRA_CPU_COUNT", "4", 1)
+        }
         else { unsetenv("MADEIRA_CPU_COUNT") }
         // "dinput": the host pad also as a DirectInput joystick (wine/dlls/dinput/joystick_ios.c,
         // off by default because a game reading both APIs would see two controllers).

@@ -359,7 +359,19 @@ enum GameEnginePreset {
         if !has("-popupwindow") {
             parts.append("-popupwindow")
         }
-        let size = resolution.lowercased().split(separator: "x").compactMap { Int($0) }
+        var size = resolution.lowercased().split(separator: "x").compactMap { Int($0) }
+        if DevicePlayProfile.memoryConstrained {
+            let light = ResolutionChoices.lightValue.lowercased().split(separator: "x").compactMap { Int($0) }
+            if size.count == 2, light.count == 2, size[0] * size[1] > light[0] * light[1] {
+                size = light
+            }
+            if !has("-job-worker-count") {
+                parts.append(contentsOf: ["-job-worker-count", "2"])
+            }
+            if !has("-force-gfx-direct") {
+                parts.append("-force-gfx-direct")
+            }
+        }
         if size.count == 2, !has("-screen-width") {
             parts.append(contentsOf: ["-screen-width", String(size[0]), "-screen-height", String(size[1])])
         }
