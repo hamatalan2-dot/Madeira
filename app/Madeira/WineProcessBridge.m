@@ -1481,15 +1481,22 @@ static void *wine_process_thread(void *arg) {
             LOG("Symlinked %d DLLs from %{public}s to %{public}s", linked, bundle_subdir, sys32Dir.UTF8String);
             dprintf(STDERR_FILENO, "[WineProc] Symlinked %d DLLs from %s -> sys32\n", linked, bundle_subdir);
             {
-                /* Do not plant wintypes as combase: on the aarch64 desktop that
-                 * is the wrong PE (c000007b) and Unity prints Failed to load il2cpp.
-                 * Leave the names missing so PE ntdll stubs the WinRT IAT, or the
-                 * sysx64 ARM64EC copy loads. */
-                for (NSString *alias in @[@"wintypes.dll",
-                                          @"api-ms-win-core-winrt-robuffer-l1-1-0.dll"]) {
-                    NSString *dst = [sys32Dir stringByAppendingPathComponent:alias];
-                    [fm removeItemAtPath:dst error:nil];
-                    dprintf(STDERR_FILENO, "[il2cpp] sys32 %s removed (WinRT stub / sysx64)\n", alias.UTF8String);
+                /* Unity IL2CPP (x64 GameAssembly) imports WinRT through
+                 * wintypes. PE ntdll on device does not stub a missing DLL
+                 * (Failed to load il2cpp). Point both names at ARM64EC
+                 * combase — the same PE the library/EC session already maps. */
+                NSString *ecCombase = [[bundlePath stringByAppendingPathComponent:@"arm64ec-windows"]
+                                       stringByAppendingPathComponent:@"combase.dll"];
+                if (![fm fileExistsAtPath:ecCombase])
+                    ecCombase = [sys32Dir stringByAppendingPathComponent:@"combase.dll"];
+                if ([fm fileExistsAtPath:ecCombase]) {
+                    for (NSString *alias in @[@"wintypes.dll",
+                                              @"api-ms-win-core-winrt-robuffer-l1-1-0.dll"]) {
+                        NSString *dst = [sys32Dir stringByAppendingPathComponent:alias];
+                        [fm removeItemAtPath:dst error:nil];
+                        if ([fm createSymbolicLinkAtPath:dst withDestinationPath:ecCombase error:nil])
+                            dprintf(STDERR_FILENO, "[il2cpp] sys32 %s -> ARM64EC combase.dll\n", alias.UTF8String);
+                    }
                 }
             }
             madeira_link_wbem(fm, prefix, @"system32", dllSource);
@@ -1555,6 +1562,16 @@ static void *wine_process_thread(void *arg) {
                     }
                     dprintf(STDERR_FILENO, "[WineProc] Farm %s: %d links -> %s\n",
                             farms[i].farm, farmLinked, farms[i].arch);
+                }
+                NSString *sysx64 = [prefix stringByAppendingPathComponent:@"drive_c/windows/sysx64"];
+                NSString *ecCombaseX64 = [sysx64 stringByAppendingPathComponent:@"combase.dll"];
+                if ([fm fileExistsAtPath:ecCombaseX64]) {
+                    for (NSString *alias in @[@"wintypes.dll",
+                                              @"api-ms-win-core-winrt-robuffer-l1-1-0.dll"]) {
+                        NSString *dst = [sysx64 stringByAppendingPathComponent:alias];
+                        [fm removeItemAtPath:dst error:nil];
+                        [fm createSymbolicLinkAtPath:dst withDestinationPath:ecCombaseX64 error:nil];
+                    }
                 }
             }
 
