@@ -3798,7 +3798,20 @@ NTSTATUS WINAPI NtQuerySystemInformation( SYSTEM_INFORMATION_CLASS class,
         if (size >= len)
         {
             if (!info) ret = STATUS_ACCESS_VIOLATION;
-            else memcpy( info, logical_proc_info, len);
+            else
+            {
+                memcpy( info, logical_proc_info, len);
+#ifdef __APPLE__
+                {
+                    ULONG n = NtCurrentTeb()->Peb->NumberOfProcessors;
+                    ULONG64 keep = n >= 64 ? ~(ULONG64)0 : (((ULONG64)1 << n) - 1);
+                    SYSTEM_LOGICAL_PROCESSOR_INFORMATION *p = info;
+                    unsigned int i;
+                    for (i = 0; i < logical_proc_info_len; i++)
+                        p[i].ProcessorMask &= keep;
+                }
+#endif
+            }
         }
         else ret = STATUS_INFO_LENGTH_MISMATCH;
         break;
@@ -4083,7 +4096,27 @@ NTSTATUS WINAPI NtQuerySystemInformationEx( SYSTEM_INFORMATION_CLASS class,
             if (relation == RelationAll || p->Relationship == relation)
             {
                 if (len + p->Size <= size)
+                {
                     memcpy( (char *)info + len, p, p->Size );
+#ifdef __APPLE__
+                    {
+                        ULONG n = NtCurrentTeb()->Peb->NumberOfProcessors;
+                        ULONG64 keep = n >= 64 ? ~(ULONG64)0 : (((ULONG64)1 << n) - 1);
+                        SYSTEM_LOGICAL_PROCESSOR_INFORMATION_EX *out =
+                            (SYSTEM_LOGICAL_PROCESSOR_INFORMATION_EX *)((char *)info + len);
+                        if (out->Relationship == RelationProcessorCore && out->Processor.GroupCount)
+                            out->Processor.GroupMask[0].Mask &= keep;
+                        else if (out->Relationship == RelationProcessorPackage && out->Processor.GroupCount)
+                            out->Processor.GroupMask[0].Mask &= keep;
+                        else if (out->Relationship == RelationCache)
+                            out->Cache.GroupMask.Mask &= keep;
+                        else if (out->Relationship == RelationNumaNode)
+                            out->NumaNode.GroupMask.Mask &= keep;
+                        else if (out->Relationship == RelationGroup && out->Group.ActiveGroupCount)
+                            out->Group.GroupInfo[0].ActiveProcessorMask &= keep;
+                    }
+#endif
+                }
                 len += p->Size;
             }
             p = (SYSTEM_LOGICAL_PROCESSOR_INFORMATION_EX *)((char *)p + p->Size);

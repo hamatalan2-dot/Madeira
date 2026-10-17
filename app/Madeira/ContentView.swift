@@ -2550,7 +2550,7 @@ struct ContentView: View {
             // display adapter (sysparams_ios.c), so every API names one GPU.
             let lightUnity = profile.map { GameEnginePreset.needsLightMemory(relativePath: $0.launchRelativePath) } ?? false
             if lightUnity {
-                dxmtOptions.append("d3d11.mipClampBC=1")
+                dxmtOptions.append("d3d11.mipClampBC=2")
                 dxmtOptions.append("d3d11.mipClampAuto=1")
                 logStore.log("DXMT config: mip clamp for Unity on this iPhone")
             } else if profile?.reportNVIDIA == true {

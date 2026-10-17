@@ -1418,7 +1418,9 @@ static BOOL import_dll( WINE_MODREF *wm, const IMAGE_IMPORT_DESCRIPTOR *descr, L
         /* Unity IL2CPP (GameAssembly.dll) imports api-ms-win-core-winrt-robuffer
          * which resolves to wintypes.dll. That builtin is not in this PE farm.
          * Stub the IAT so the game can load; a real wintypes.dll still wins if present. */
-        int stub_winrt = (status == STATUS_DLL_NOT_FOUND) && name &&
+        int stub_winrt = name &&
+            (status == STATUS_DLL_NOT_FOUND || status == STATUS_INVALID_IMAGE_FORMAT ||
+             status == STATUS_NOT_SUPPORTED) &&
             (!_strnicmp( name, "api-ms-win-core-winrt-", 22 ) ||
              !_strnicmp( name, "api-ms-win-ro-", 14 ) ||
              !_strnicmp( name, "ext-ms-win-ro-", 14 ) ||
@@ -3143,6 +3145,9 @@ static BOOL is_valid_binary( HANDLE file, const SECTION_IMAGE_INFORMATION *info 
     if (NtCurrentTeb()->WowTebOffset) return TRUE;
     /* support ARM64EC binaries on x86-64 */
     if (current_machine == IMAGE_FILE_MACHINE_AMD64 && has_chpe_metadata( file, info )) return TRUE;
+    /* iOS-Madeira: aarch64 desktop loads x64 Unity via FEX; ARM64EC builtins
+     * in sysx64 are the matching farm (library launches already use EC ntdll). */
+    if (current_machine == IMAGE_FILE_MACHINE_ARM64 && has_chpe_metadata( file, info )) return TRUE;
     /* support 32-bit IL-only images on 64-bit */
     if (!info->ImageContainsCode) return TRUE;
     if (info->ComPlusNativeReady) return TRUE;
@@ -4027,14 +4032,12 @@ static NTSTATUS find_dll_file( const WCHAR *load_path, const WCHAR *libname, UNI
 
     if (status == STATUS_NOT_SUPPORTED) status = STATUS_INVALID_IMAGE_FORMAT;
 
-#ifdef __arm64ec__
-    /* iOS-Madeira mixed-arch pseudo-processes: in a native-ARM64 session the
-     * shared system32 farm serves ARM64 binaries for colliding names, which
-     * an AMD64 child (running this EC ntdll privately) cannot load. Fall
-     * back to C:\windows\sysx64, a farm of the full ARM64EC DLL set —
-     * Windows' own SysWOW64 pattern. EC sessions' system32 already serves
-     * EC binaries, so the retry only ever fires in mixed mode. */
-    if (status == STATUS_INVALID_IMAGE_FORMAT || status == STATUS_DLL_NOT_FOUND)
+    /* iOS-Madeira mixed-arch: native-ARM64 (Desktop) system32 is aarch64, but
+     * an AMD64 Unity GameAssembly needs ARM64EC/x64 DLLs. sysx64 is that farm.
+     * Must be in aarch64 PE ntdll too (__APPLE__ is not defined in PE builds;
+     * the old __arm64ec__-only copy never ran for explorer). */
+    if (status == STATUS_INVALID_IMAGE_FORMAT || status == STATUS_DLL_NOT_FOUND
+        || status == STATUS_NOT_SUPPORTED)
     {
         static const WCHAR sysx64W[] = L"\\??\\C:\\windows\\sysx64\\";
         WCHAR buf[MAX_PATH];
@@ -4059,7 +4062,6 @@ static NTSTATUS find_dll_file( const WCHAR *load_path, const WCHAR *libname, UNI
             }
         }
     }
-#endif
 
     RtlFreeHeap( GetProcessHeap(), 0, fullname );
     if (wow64_old_value) RtlWow64EnableFsRedirectionEx( 1, &wow64_old_value );
