@@ -657,7 +657,7 @@ ResourceInitializer::flushInternal() {
    * process on a black load. Wait and drop the ring once it is above
    * one extra block. */
   const uint64_t live = g_mem_census.live[MEMOWN_INIT_UPLOAD].load(std::memory_order_relaxed);
-  if (live > (80ull << 20)) {
+  if (live > (48ull << 20)) {
     upload_queue_event_.waitUntilSignaledValue(seq_id, -1);
     cached_coherent_seq_id = seq_id;
     gpu_command_heap_allocator.free_blocks((uint64_t)-1);

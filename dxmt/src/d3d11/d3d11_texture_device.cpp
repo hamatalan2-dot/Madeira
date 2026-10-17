@@ -9,6 +9,7 @@
 #include "util_win32_compat.h"
 #include "config/config.hpp"   /* ml675: d3d11.mipClampBC */
 #include "d3d11_mip_clamp_policy.hpp"   /* ml2000: d3d11.mipClampAuto */
+#include "dxmt_mem_census.hpp"
 #include "util_env.hpp"
 #include "util_madeira_switch.hpp"
 #include "winemetal.h"
@@ -603,6 +604,34 @@ HRESULT CreateDeviceTextureInternal(MTLD3D11Device *pDevice,
       info.width              = physDesc.Width;
       info.height             = physDesc.Height;
       info.mipmap_level_count = physDesc.MipLevels;
+    }
+    /* Over the Hill's world load created an 8192-class SRV (256MB upload
+     * block) even on Low. mipClampBC only sees BC; heightmaps and FOW skip
+     * it. Halve any SRV-only 2D until the top level is under 16MB. */
+    if (cached_clamp > 0 &&
+        (finalDesc.BindFlags == D3D11_BIND_SHADER_RESOURCE) && !finalDesc.CPUAccessFlags &&
+        finalDesc.SampleDesc.Count <= 1) {
+      const uint32_t bpp = std::max(1u, mem_census_texel_bytes(info.pixel_format));
+      uint64_t bytes = (uint64_t)info.width * info.height * std::max(1u, info.array_length) * bpp;
+      uint32_t extra = 0;
+      while (bytes > (16ull << 20) && info.width >= 16 && info.height >= 16) {
+        info.width = std::max(1u, info.width >> 1);
+        info.height = std::max(1u, info.height >> 1);
+        extra++;
+        bytes /= 4;
+      }
+      if (extra) {
+        mip_bias += extra;
+        physDesc.Width = info.width;
+        physDesc.Height = info.height;
+        if (physDesc.MipLevels > extra)
+          physDesc.MipLevels -= extra;
+        else
+          physDesc.MipLevels = 1;
+        info.mipmap_level_count = physDesc.MipLevels;
+        ERR("[mip-clamp] huge-srv extra=", extra, " -> ", info.width, "x", info.height,
+            " arr=", info.array_length, " ~", (unsigned)(bytes >> 20), "MB");
+      }
     }
   }
   bool single_subresource = info.mipmap_level_count == 1 && info.array_length == 1 &&

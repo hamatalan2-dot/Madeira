@@ -2471,6 +2471,9 @@ struct ContentView: View {
                mb >= 256, mb <= 1152 {
                 poolSizeMB = mb
                 logStore.log("JIT pool overridden to \(mb)MB via madeira.cfg pool")
+            } else if let profile, GameEnginePreset.needsLightMemory(relativePath: profile.launchRelativePath), poolSizeMB > 640 {
+                poolSizeMB = 640
+                logStore.log("JIT pool 640MB for Unity on this iPhone")
             }
             // ml694: W^X A/B switch. Documents/madeira-wx.txt containing "0"
             // disables page demotion for the SAME binary, so the on/off
@@ -2550,7 +2553,7 @@ struct ContentView: View {
             // display adapter (sysparams_ios.c), so every API names one GPU.
             let lightUnity = profile.map { GameEnginePreset.needsLightMemory(relativePath: $0.launchRelativePath) } ?? false
             if lightUnity {
-                dxmtOptions.append("d3d11.mipClampBC=2")
+                dxmtOptions.append("d3d11.mipClampBC=3")
                 dxmtOptions.append("d3d11.mipClampAuto=1")
                 logStore.log("DXMT config: mip clamp for Unity on this iPhone")
             } else if profile?.reportNVIDIA == true {

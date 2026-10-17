@@ -324,6 +324,10 @@ struct LibraryEntry: Codable, Identifiable {
     var gameConfigText: String? {
         var lines: [String] = []
         if let metalFXUpscale { lines.append("metalfx-upscale = \(metalFXUpscale)") }
+        if GameEnginePreset.needsLightMemory(relativePath: relativePath),
+           (config ?? "").range(of: "vram-mb") == nil {
+            lines.append("vram-mb = 768")
+        }
         if let config, !config.isEmpty { lines.append(config) }
         return lines.isEmpty ? nil : lines.joined(separator: "\n")
     }
@@ -622,7 +626,7 @@ struct LibraryEntry: Codable, Identifiable {
         } else if let cpuCount, (1..<64).contains(cpuCount) { setenv("MADEIRA_CPU_COUNT", String(cpuCount), 1) }
         else { unsetenv("MADEIRA_CPU_COUNT") }
         if lightUnity {
-            setenv("MADEIRA_TOTAL_PHYS_MB", "2048", 1)
+            setenv("MADEIRA_TOTAL_PHYS_MB", "1536", 1)
             setenv("MADEIRA_MIP_CLAMP_AUTO", "1", 1)
             GameEnginePreset.applyLightBootConfig(relativePath: launchRelativePath)
         } else {
