@@ -1479,6 +1479,19 @@ static void *wine_process_thread(void *arg) {
             }
             LOG("Symlinked %d DLLs from %{public}s to %{public}s", linked, bundle_subdir, sys32Dir.UTF8String);
             dprintf(STDERR_FILENO, "[WineProc] Symlinked %d DLLs from %s -> sys32\n", linked, bundle_subdir);
+            {
+                NSString *combase = [sys32Dir stringByAppendingPathComponent:@"combase.dll"];
+                if ([fm fileExistsAtPath:combase]) {
+                    for (NSString *alias in @[@"wintypes.dll",
+                                              @"api-ms-win-core-winrt-robuffer-l1-1-0.dll"]) {
+                        NSString *dst = [sys32Dir stringByAppendingPathComponent:alias];
+                        if ([fm fileExistsAtPath:dst]) continue;
+                        [fm removeItemAtPath:dst error:nil];
+                        if ([fm createSymbolicLinkAtPath:dst withDestinationPath:combase error:nil])
+                            dprintf(STDERR_FILENO, "[il2cpp] sys32 %s -> combase.dll\n", alias.UTF8String);
+                    }
+                }
+            }
             madeira_link_wbem(fm, prefix, @"system32", dllSource);
 
             // X3 mixed-mode: also link NON-COLLIDING files from the other
