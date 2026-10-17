@@ -839,6 +839,7 @@ final class HardwareInput: ObservableObject {
     /// the scene's windows.
     private func computeBaseFocus() -> Bool {
         guard appActive, UIApplication.shared.applicationState == .active else { return false }
+        if madeira_host_browser_active() != 0 { return false }
         guard Self.focusEnabled else { return true }
         guard let v = MetalBackedView.keyboardTarget, let w = v.window,
               !v.isHidden, !w.isHidden, v.alpha > 0.01 else { return false }

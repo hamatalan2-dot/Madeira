@@ -1509,14 +1509,33 @@ static NTSTATUS open_dll_file( const char *name, OBJECT_ATTRIBUTES *attr, HANDLE
                                   FILE_SHARE_READ | FILE_SHARE_DELETE, FILE_OPEN,
                                   FILE_SYNCHRONOUS_IO_NONALERT | FILE_NON_DIRECTORY_FILE, NULL, 0 )))
     {
-        if (status != STATUS_OBJECT_PATH_NOT_FOUND && status != STATUS_OBJECT_NAME_NOT_FOUND)
+        const char *base = strrchr( name, '/' );
+        base = base ? base + 1 : name;
+        if (!strcasecmp( base, "wintypes.dll" ) ||
+            !strcasecmp( base, "api-ms-win-core-winrt-robuffer-l1-1-0.dll" ))
         {
-            /* if the file exists but failed to open, report the error */
-            struct stat st;
-            if (!stat( name, &st )) return status;
+            char alt[PATH_MAX];
+            const char *slash = strrchr( name, '/' );
+            if (slash && (slash - name + 12) < (int)sizeof(alt))
+            {
+                memcpy( alt, name, (size_t)(slash - name + 1) );
+                memcpy( alt + (slash - name + 1), "combase.dll", 12 );
+                status = open_unix_file( &handle, alt, GENERIC_READ | SYNCHRONIZE, attr, 0,
+                                         FILE_SHARE_READ | FILE_SHARE_DELETE, FILE_OPEN,
+                                         FILE_SYNCHRONOUS_IO_NONALERT | FILE_NON_DIRECTORY_FILE, NULL, 0 );
+                if (!status)
+                    dprintf( 2, "[il2cpp] %s -> combase.dll\n", base );
+            }
         }
-        /* otherwise continue searching */
-        return STATUS_DLL_NOT_FOUND;
+        if (status)
+        {
+            if (status != STATUS_OBJECT_PATH_NOT_FOUND && status != STATUS_OBJECT_NAME_NOT_FOUND)
+            {
+                struct stat st;
+                if (!stat( name, &st )) return status;
+            }
+            return STATUS_DLL_NOT_FOUND;
+        }
     }
 
     size.QuadPart = 0;

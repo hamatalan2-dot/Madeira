@@ -25,8 +25,7 @@ if [[ -d "$BISON_PATH" ]]; then export PATH="$BISON_PATH:$PATH"; fi
 if [[ -d "$LLVM_PATH" ]]; then export PATH="$LLVM_PATH:$PATH"; fi
 if [[ -d "$SEVENZIP_PATH" ]]; then export PATH="$SEVENZIP_PATH:$PATH"; fi
 
-log "Checking out submodules"
-git -C "$ROOT" submodule update --init --recursive
+
 
 log "Validating bundled Wine prefix"
 bash "$ROOT/tools/check-prefix-template.sh" "$ROOT/app/Madeira/prefix-template.tar.gz"

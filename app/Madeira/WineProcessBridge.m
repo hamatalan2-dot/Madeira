@@ -12,6 +12,7 @@
 #import <AVFoundation/AVFoundation.h>
 #import <AudioToolbox/AudioToolbox.h>
 #import <UIKit/UIKit.h>
+#import <WebKit/WebKit.h>
 #include <unistd.h>
 #include <pwd.h>
 #include <fcntl.h>
@@ -93,6 +94,141 @@ void madeira_audio_activate(const char *reason)
             madeira_audio_activate("became-active");
         }];
     });
+}
+
+static UIViewController *g_host_browser_vc;
+static int g_host_browser_active;
+
+int madeira_host_browser_active(void)
+{
+    return g_host_browser_active;
+}
+
+void madeira_host_browser_dismiss(void)
+{
+    dispatch_async(dispatch_get_main_queue(), ^{
+        if (!g_host_browser_active && !g_host_browser_vc) return;
+        g_host_browser_active = 0;
+        UIViewController *vc = g_host_browser_vc;
+        g_host_browser_vc = nil;
+        [vc dismissViewControllerAnimated:YES completion:nil];
+        dprintf(STDERR_FILENO, "[winebrowser] dismissed overlay (game started)\n");
+    });
+}
+
+@interface MadeiraHostBrowserVC : UIViewController <WKNavigationDelegate>
+@property (nonatomic, copy) NSString *urlString;
+@property (nonatomic, strong) WKWebView *web;
+@end
+
+@implementation MadeiraHostBrowserVC
+- (void)viewDidLoad
+{
+    [super viewDidLoad];
+    self.view.backgroundColor = UIColor.systemBackgroundColor;
+    WKWebViewConfiguration *cfg = [WKWebViewConfiguration new];
+    cfg.websiteDataStore = [WKWebsiteDataStore defaultDataStore];
+    cfg.defaultWebpagePreferences.allowsContentJavaScript = YES;
+    _web = [[WKWebView alloc] initWithFrame:self.view.bounds configuration:cfg];
+    _web.autoresizingMask = UIViewAutoresizingFlexibleWidth | UIViewAutoresizingFlexibleHeight;
+    _web.navigationDelegate = self;
+    _web.customUserAgent = @"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36";
+    [self.view addSubview:_web];
+    NSURL *u = [NSURL URLWithString:_urlString];
+    if (u) [_web loadRequest:[NSURLRequest requestWithURL:u]];
+    self.title = @"Epic";
+    self.navigationItem.prompt = @"Sign in here. EOSAuthLauncher then starts the game. Tap Done when finished.";
+    self.navigationItem.rightBarButtonItem =
+        [[UIBarButtonItem alloc] initWithBarButtonSystemItem:UIBarButtonSystemItemDone
+                                                      target:self
+                                                      action:@selector(madeiraClose)];
+}
+
+- (void)madeiraClose
+{
+    g_host_browser_active = 0;
+    UIViewController *vc = g_host_browser_vc;
+    g_host_browser_vc = nil;
+    [vc dismissViewControllerAnimated:YES completion:nil];
+}
+
+- (void)webView:(WKWebView *)webView didFinishNavigation:(WKNavigation *)navigation
+{
+    (void)navigation;
+    NSString *host = webView.URL.host;
+    if (host.length) self.title = host;
+}
+@end
+
+static UIViewController *madeira_presentation_root(UIWindowScene *scene)
+{
+    UIWindow *key = nil;
+    for (UIWindow *w in scene.windows) {
+        if (w.isHidden) continue;
+        if (w.isKeyWindow) { key = w; break; }
+        if (!key && w.windowLevel <= UIWindowLevelNormal) key = w;
+    }
+    if (!key) key = scene.windows.firstObject;
+    UIViewController *root = key.rootViewController;
+    while (root.presentedViewController) root = root.presentedViewController;
+    return root;
+}
+
+static void madeira_host_browser_present(NSString *url)
+{
+    UIWindowScene *scene = nil;
+    for (UIScene *s in UIApplication.sharedApplication.connectedScenes) {
+        if (![s isKindOfClass:[UIWindowScene class]]) continue;
+        UIWindowScene *ws = (UIWindowScene *)s;
+        if (ws.activationState == UISceneActivationStateForegroundActive) { scene = ws; break; }
+        if (!scene) scene = ws;
+    }
+    if (!scene) {
+        dprintf(STDERR_FILENO, "[winebrowser] no window scene for %s\n", url.UTF8String);
+        return;
+    }
+    if (g_host_browser_vc) {
+        UINavigationController *nav = (UINavigationController *)g_host_browser_vc;
+        MadeiraHostBrowserVC *page = (MadeiraHostBrowserVC *)nav.viewControllers.firstObject;
+        if ([page isKindOfClass:[MadeiraHostBrowserVC class]] && page.web) {
+            NSURL *u = [NSURL URLWithString:url];
+            if (u) [page.web loadRequest:[NSURLRequest requestWithURL:u]];
+            g_host_browser_active = 1;
+            return;
+        }
+    }
+    UIViewController *root = madeira_presentation_root(scene);
+    if (!root) {
+        dprintf(STDERR_FILENO, "[winebrowser] no root to present %s\n", url.UTF8String);
+        return;
+    }
+    MadeiraHostBrowserVC *vc = [MadeiraHostBrowserVC new];
+    vc.urlString = url;
+    UINavigationController *nav = [[UINavigationController alloc] initWithRootViewController:vc];
+    nav.modalPresentationStyle = UIModalPresentationFullScreen;
+    g_host_browser_vc = nav;
+    g_host_browser_active = 1;
+    [root presentViewController:nav animated:YES completion:nil];
+    dprintf(STDERR_FILENO, "[winebrowser] presented modal for %s\n", url.UTF8String);
+}
+
+int madeira_open_http_url(const char *url)
+{
+    if (!url || !*url) return -1;
+    if (strncmp(url, "https://", 8) && strncmp(url, "http://", 7) && strncmp(url, "mailto:", 7))
+        return -1;
+    NSString *s = [NSString stringWithUTF8String:url];
+    if (!s.length) return -1;
+    dprintf(STDERR_FILENO, "[winebrowser] host overlay %s\n", url);
+    dispatch_async(dispatch_get_main_queue(), ^{
+        if ([s hasPrefix:@"mailto:"]) {
+            NSURL *u = [NSURL URLWithString:s];
+            if (u) [UIApplication.sharedApplication openURL:u options:@{} completionHandler:nil];
+            return;
+        }
+        madeira_host_browser_present(s);
+    });
+    return 0;
 }
 
 /* ---- ml581: undo the hand-made AppData skeleton ------------------------
@@ -1212,6 +1348,7 @@ static void *wine_process_thread(void *arg) {
                     "MADEIRA_FRAMEGEN",          /* ml1184: the game's "Frame generation" */
                     "DXMT_ENABLE_NVEXT", "DXMT_WSI_MONITOR_IDENTITY", "DXMT_WSI_MODE_TABLE",   /* the game's "Report an NVIDIA GPU" */
                     "MADEIRA_WAIT_CHILDREN",   /* Unity (and similar) launchers that start a child and exit */
+                    "MADEIRA_TOTAL_PHYS_MB", "MADEIRA_MIP_CLAMP_AUTO",
                 };
                 enum { per_launch_count = sizeof(per_launch) / sizeof(per_launch[0]) };
                 BOOL game_set[per_launch_count];
@@ -1343,6 +1480,25 @@ static void *wine_process_thread(void *arg) {
             }
             LOG("Symlinked %d DLLs from %{public}s to %{public}s", linked, bundle_subdir, sys32Dir.UTF8String);
             dprintf(STDERR_FILENO, "[WineProc] Symlinked %d DLLs from %s -> sys32\n", linked, bundle_subdir);
+            {
+                /* Unity IL2CPP (x64 GameAssembly) imports WinRT through
+                 * wintypes. PE ntdll on device does not stub a missing DLL
+                 * (Failed to load il2cpp). Point both names at ARM64EC
+                 * combase — the same PE the library/EC session already maps. */
+                NSString *ecCombase = [[bundlePath stringByAppendingPathComponent:@"arm64ec-windows"]
+                                       stringByAppendingPathComponent:@"combase.dll"];
+                if (![fm fileExistsAtPath:ecCombase])
+                    ecCombase = [sys32Dir stringByAppendingPathComponent:@"combase.dll"];
+                if ([fm fileExistsAtPath:ecCombase]) {
+                    for (NSString *alias in @[@"wintypes.dll",
+                                              @"api-ms-win-core-winrt-robuffer-l1-1-0.dll"]) {
+                        NSString *dst = [sys32Dir stringByAppendingPathComponent:alias];
+                        [fm removeItemAtPath:dst error:nil];
+                        if ([fm createSymbolicLinkAtPath:dst withDestinationPath:ecCombase error:nil])
+                            dprintf(STDERR_FILENO, "[il2cpp] sys32 %s -> ARM64EC combase.dll\n", alias.UTF8String);
+                    }
+                }
+            }
             madeira_link_wbem(fm, prefix, @"system32", dllSource);
 
             // X3 mixed-mode: also link NON-COLLIDING files from the other
@@ -1406,6 +1562,16 @@ static void *wine_process_thread(void *arg) {
                     }
                     dprintf(STDERR_FILENO, "[WineProc] Farm %s: %d links -> %s\n",
                             farms[i].farm, farmLinked, farms[i].arch);
+                }
+                NSString *sysx64 = [prefix stringByAppendingPathComponent:@"drive_c/windows/sysx64"];
+                NSString *ecCombaseX64 = [sysx64 stringByAppendingPathComponent:@"combase.dll"];
+                if ([fm fileExistsAtPath:ecCombaseX64]) {
+                    for (NSString *alias in @[@"wintypes.dll",
+                                              @"api-ms-win-core-winrt-robuffer-l1-1-0.dll"]) {
+                        NSString *dst = [sysx64 stringByAppendingPathComponent:alias];
+                        [fm removeItemAtPath:dst error:nil];
+                        [fm createSymbolicLinkAtPath:dst withDestinationPath:ecCombaseX64 error:nil];
+                    }
                 }
             }
 
@@ -1729,6 +1895,7 @@ static void *wine_process_thread(void *arg) {
         unsetenv("MADEIRA_FEX_AVX"); unsetenv("MADEIRA_FRAMEGEN");   /* ml1184 */
         unsetenv("DXMT_ENABLE_NVEXT"); unsetenv("DXMT_WSI_MONITOR_IDENTITY"); unsetenv("DXMT_WSI_MODE_TABLE");
         unsetenv("MADEIRA_WAIT_CHILDREN");   /* Unity launcher wait, ml1184 */
+        unsetenv("MADEIRA_TOTAL_PHYS_MB"); unsetenv("MADEIRA_MIP_CLAMP_AUTO");
 
         // Stop wineserver to prevent CPU spin (iOS kills for excessive CPU)
         dprintf(STDERR_FILENO, "[WineProc] stopping wineserver...\n");

@@ -324,6 +324,10 @@ struct LibraryEntry: Codable, Identifiable {
     var gameConfigText: String? {
         var lines: [String] = []
         if let metalFXUpscale { lines.append("metalfx-upscale = \(metalFXUpscale)") }
+        if GameEnginePreset.needsLightMemory(relativePath: relativePath),
+           (config ?? "").range(of: "vram-mb") == nil {
+            lines.append("vram-mb = 768")
+        }
         if let config, !config.isEmpty { lines.append(config) }
         return lines.isEmpty ? nil : lines.joined(separator: "\n")
     }
@@ -354,6 +358,9 @@ struct LibraryEntry: Codable, Identifiable {
         if GameEnginePreset.isUnity(relativePath: launchRelativePath) {
             return GameEnginePreset.unityArguments(base, resolution: resolution)
         }
+        if GameEnginePreset.isEpicAuthLauncher(launchRelativePath.split(separator: "/").last.map(String.init) ?? "") {
+            return base
+        }
         if GameEnginePreset.isUnreal(relativePath: launchRelativePath) {
             let url = Self.hostDrive.appendingPathComponent(launchRelativePath)
             return GameEnginePreset.unrealArguments(base, project: GameEnginePreset.projectName(forShipping: url))
@@ -368,7 +375,16 @@ struct LibraryEntry: Codable, Identifiable {
     var launchDirectory: String {
         let chosen = (workingDirectory ?? "").trimmingCharacters(in: .whitespaces)
         if !chosen.isEmpty { return chosen }
-        return steamWorkingWindowsPath ?? Self.folder(of: launchWindowsPath)
+        if let steam = steamWorkingWindowsPath { return steam }
+        let folder = Self.folder(of: launchWindowsPath)
+        if GameEnginePreset.isEpicAuthLauncher(launchRelativePath.split(separator: "/").last.map(String.init) ?? "") {
+            return folder
+        }
+        if GameEnginePreset.isUnreal(relativePath: launchRelativePath),
+           let binaries = GameEnginePreset.binariesWorkingDirectory(windowsFolder: folder) {
+            return binaries
+        }
+        return folder
     }
     /// C:\a\b\x.exe -> C:\a\b (C:\ for a file in the root).
     static func folder(of windowsPath: String) -> String {
@@ -586,23 +602,37 @@ struct LibraryEntry: Codable, Identifiable {
             guard startsSteamGameDirectly, let program = steamProgram, !program.isEmpty else { return relativePath }
             return relativePath + "/" + program
         }()
-        if let shipping = GameEnginePreset.preferredLaunchRelativePath(from: selectedLaunch) {
-            LogStore.shared.log("[unreal] launching \(shipping) instead of \(selectedLaunch)")
+        if let redirected = GameEnginePreset.preferredLaunchRelativePath(from: selectedLaunch) {
+            let kind = GameEnginePreset.isEpicAuthLauncher(redirected.split(separator: "/").last.map(String.init) ?? "") ? "epic" : "unreal"
+            LogStore.shared.log("[\(kind)] launching \(redirected) instead of \(selectedLaunch)")
         }
         // Unset unless chosen: FEX's own default then applies, as for any other launch.
         if reducedX87 { setenv("FEX_X87REDUCEDPRECISION", "1", 1) } else { unsetenv("FEX_X87REDUCEDPRECISION") }
         // Unity launchers often start the real player and exit; keep the session
         // for that child. Unset for other games so madeira.cfg can still opt in.
+        let epicLauncher = GameEnginePreset.isEpicAuthLauncher(launchRelativePath.split(separator: "/").last.map(String.init) ?? "")
         if GameEnginePreset.isUnity(relativePath: launchRelativePath)
-            || GameEnginePreset.isUnreal(relativePath: launchRelativePath) {
+            || GameEnginePreset.isUnreal(relativePath: launchRelativePath)
+            || epicLauncher {
             setenv("MADEIRA_WAIT_CHILDREN", "1", 1)
         } else { unsetenv("MADEIRA_WAIT_CHILDREN") }
         // Exported only when chosen: unset keeps the engine's own default (and any
         // madeira.cfg setting), as before these choices existed.
         // Unset otherwise, so a previous game's choice (a launch that died before the
         // session-end unset) never beats madeira.cfg for this one.
-        if let cpuCount, (1..<64).contains(cpuCount) { setenv("MADEIRA_CPU_COUNT", String(cpuCount), 1) }
+        let lightUnity = GameEnginePreset.needsLightMemory(relativePath: launchRelativePath)
+        if lightUnity {
+            setenv("MADEIRA_CPU_COUNT", "2", 1)
+        } else if let cpuCount, (1..<64).contains(cpuCount) { setenv("MADEIRA_CPU_COUNT", String(cpuCount), 1) }
         else { unsetenv("MADEIRA_CPU_COUNT") }
+        if lightUnity {
+            setenv("MADEIRA_TOTAL_PHYS_MB", "1536", 1)
+            setenv("MADEIRA_MIP_CLAMP_AUTO", "1", 1)
+            GameEnginePreset.applyLightBootConfig(relativePath: launchRelativePath)
+        } else {
+            unsetenv("MADEIRA_TOTAL_PHYS_MB")
+            unsetenv("MADEIRA_MIP_CLAMP_AUTO")
+        }
         // "dinput": the host pad also as a DirectInput joystick (wine/dlls/dinput/joystick_ios.c,
         // off by default because a game reading both APIs would see two controllers).
         // Exported only for that choice, and it wins over madeira.cfg's MADEIRA_DINPUT_PAD
@@ -613,7 +643,7 @@ struct LibraryEntry: Codable, Identifiable {
         if let anisotropyLimit, [1, 2, 4, 8].contains(anisotropyLimit) { setenv("DXMT_D9_ANISO_LIMIT", String(anisotropyLimit), 1) }
         else { unsetenv("DXMT_D9_ANISO_LIMIT") }
         // Set or unset, so a previous session's choice never stays.
-        if avx == true || GameEnginePreset.isUnreal(relativePath: launchRelativePath) {
+        if avx == true || GameEnginePreset.isUnreal(relativePath: launchRelativePath) || epicLauncher {
             setenv("MADEIRA_FEX_AVX", "1", 1)
         } else { unsetenv("MADEIRA_FEX_AVX") }
         if frameGeneration == true { setenv("MADEIRA_FRAMEGEN", "1", 1) } else { unsetenv("MADEIRA_FRAMEGEN") }
@@ -624,7 +654,8 @@ struct LibraryEntry: Codable, Identifiable {
         // registry adapter. Set or unset, so one game's choice never leaks into
         // the next session; when set, it wins over madeira.cfg's lines for the
         // same keys (ml1184's per-launch list in WineProcessBridge.m).
-        if reportNVIDIA == true {
+        // An RTX 3060 report makes Unity pick high texture quality on a 6 GB phone.
+        if reportNVIDIA == true, !lightUnity {
             setenv("DXMT_ENABLE_NVEXT", "1", 1)
             setenv("DXMT_WSI_MONITOR_IDENTITY", "1", 1)
             setenv("DXMT_WSI_MODE_TABLE", "1", 1)
@@ -709,12 +740,12 @@ struct LibraryEntry: Codable, Identifiable {
             resolution = ResolutionChoices.lightValue
             metalFXUpscale = 1.5
             fpsMode = 3
-            cpuCount = 4
+            cpuCount = GameEnginePreset.isUnity(relativePath: relativePath) ? 2 : 4
             anisotropyLimit = 2
             frameGeneration = nil
         }
         if GameEnginePreset.isUnity(relativePath: relativePath) {
-            reportNVIDIA = true
+            reportNVIDIA = DevicePlayProfile.memoryConstrained ? false : true
         }
         if GameEnginePreset.isUnreal(relativePath: relativePath) {
             avx = true
@@ -3063,7 +3094,7 @@ struct LibraryDetail: View {
                             Text("Unity: Madeira adds -force-d3d11, a window, and -screen-width/-screen-height to match Resolution, unless you already set a renderer or those flags. Put steam_appid.txt next to the .exe if the game needs a Steam App ID without Steam.")
                         }
                         if GameEnginePreset.isUnreal(relativePath: entry.launchRelativePath) {
-                            Text("Unreal: Madeira starts *-Win64-Shipping.exe when it finds one, turns on AVX, and adds the project name, -dx11, -windowed, and -ansimalloc unless you already set a renderer or those flags. Direct3D 12 is not the default path.")
+                            Text("Unreal: EOSAuthLauncher starts the shipping exe with DirectX 12 (this project rejects DX11), a window at this game's resolution, and AVX. 6 GB phones use the light size and MetalFX.")
                         }
                     }
                 }

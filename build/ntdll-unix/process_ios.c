@@ -713,7 +713,22 @@ static NTSTATUS spawn_process( const RTL_USER_PROCESS_PARAMETERS *params, int so
 NTSTATUS WINAPI __wine_unix_spawnvp( char * const argv[], int wait )
 {
 #ifdef WINE_IOS
-    /* No fork/exec on iOS */
+    /* No fork/exec. winebrowser uses this to open http(s) (Epic device link). */
+    extern int madeira_open_http_url( const char *url ) __attribute__((weak));
+    int i;
+    (void)wait;
+    if (argv && madeira_open_http_url)
+    {
+        for (i = 0; argv[i]; i++)
+        {
+            if (!strncmp( argv[i], "https://", 8 ) || !strncmp( argv[i], "http://", 7 )
+                || !strncmp( argv[i], "mailto:", 7 ))
+            {
+                if (!madeira_open_http_url( argv[i] )) return STATUS_SUCCESS;
+                break;
+            }
+        }
+    }
     return STATUS_NOT_SUPPORTED;
 #else
     pid_t pid, wret;
@@ -1239,6 +1254,114 @@ NTSTATUS WINAPI NtCreateUserProcess( HANDLE *process_handle_ptr, HANDLE *thread_
         winios_phase( pbuf );
     }
     madeira_steam_session_log( &params->ImagePathName );
+
+    /* Unreal shipping started by EOSAuthLauncher: drop the Epic overlay and
+     * add DXMT's flags (the launcher's own cmdline has none of them). */
+    {
+        const WCHAR *ip = params->ImagePathName.Buffer;
+        int ip_len = params->ImagePathName.Length / sizeof(WCHAR);
+        int is_shipping = 0, k, j;
+        static const char ship[] = "-win64-shipping.exe";
+        static const char skip[] = "server";
+        int sl = (int)sizeof(ship) - 1, skipl = (int)sizeof(skip) - 1;
+        for (k = 0; k + sl <= ip_len && !is_shipping; k++)
+        {
+            for (j = 0; j < sl; j++)
+            {
+                WCHAR c = ip[k + j];
+                if (c >= 'A' && c <= 'Z') c += 32;
+                if (c != (WCHAR)ship[j]) break;
+            }
+            if (j == sl) is_shipping = 1;
+        }
+        if (is_shipping)
+        {
+            int is_server = 0;
+            for (k = 0; k + skipl <= ip_len && !is_server; k++)
+            {
+                for (j = 0; j < skipl; j++)
+                {
+                    WCHAR c = ip[k + j];
+                    if (c >= 'A' && c <= 'Z') c += 32;
+                    if (c != (WCHAR)skip[j]) break;
+                }
+                if (j == skipl) is_server = 1;
+            }
+            if (!is_server)
+            {
+                extern void madeira_host_browser_dismiss(void);
+                const WCHAR *cl = params->CommandLine.Buffer;
+                int cl_len = params->CommandLine.Length / sizeof(WCHAR);
+                char extra[160];
+                int el, has_dx = 0, has_win = 0, has_res = 0;
+                static const char * const dx[] = { "-dx11", "-dx12", "-dx10", "-dx9", "-d3d11", "-d3d12" };
+                unsigned d;
+                const char *sw = getenv( "MADEIRA_SCREEN_W" ), *sh = getenv( "MADEIRA_SCREEN_H" );
+                int rw = sw ? atoi( sw ) : 0, rh = sh ? atoi( sh ) : 0;
+                madeira_host_browser_dismiss();
+                for (d = 0; d < sizeof(dx)/sizeof(dx[0]) && !has_dx; d++)
+                {
+                    int dl = (int)strlen( dx[d] );
+                    for (k = 0; k + dl <= cl_len && !has_dx; k++)
+                    {
+                        for (j = 0; j < dl; j++)
+                        {
+                            WCHAR c = cl[k + j];
+                            if (c >= 'A' && c <= 'Z') c += 32;
+                            if (c != (WCHAR)dx[d][j]) break;
+                        }
+                        if (j == dl) has_dx = 1;
+                    }
+                }
+                for (k = 0; k + 9 <= cl_len && !has_win; k++)
+                {
+                    static const char win[] = "-windowed";
+                    for (j = 0; j < 9; j++)
+                    {
+                        WCHAR c = cl[k + j];
+                        if (c >= 'A' && c <= 'Z') c += 32;
+                        if (c != (WCHAR)win[j]) break;
+                    }
+                    if (j == 9) has_win = 1;
+                }
+                for (k = 0; k + 6 <= cl_len && !has_res; k++)
+                {
+                    static const char rx[] = "-resx=";
+                    for (j = 0; j < 6; j++)
+                    {
+                        WCHAR c = cl[k + j];
+                        if (c >= 'A' && c <= 'Z') c += 32;
+                        if (c != (WCHAR)rx[j]) break;
+                    }
+                    if (j == 6) has_res = 1;
+                }
+                /* UE5 SM6 (Windrose) rejects -dx11. D3D12 + window at the session size. */
+                if (!has_res && rw >= 320 && rh >= 180 && rw <= 3840 && rh <= 2160)
+                    el = snprintf( extra, sizeof(extra), "%s%s -ResX=%d -ResY=%d -forceres",
+                                   has_dx ? "" : " -dx12",
+                                   has_win ? "" : " -windowed -ansimalloc",
+                                   rw, rh );
+                else
+                    el = snprintf( extra, sizeof(extra), "%s%s",
+                                   has_dx ? "" : " -dx12",
+                                   has_win ? "" : " -windowed -ansimalloc" );
+                if (el > 0)
+                {
+                    WCHAR *nbuf = malloc( (cl_len + el + 1) * sizeof(WCHAR) );
+                    if (nbuf)
+                    {
+                        memcpy( nbuf, cl, cl_len * sizeof(WCHAR) );
+                        for (j = 0; j < el; j++) nbuf[cl_len + j] = (WCHAR)extra[j];
+                        nbuf[cl_len + el] = 0;
+                        params->CommandLine.Buffer = nbuf;
+                        params->CommandLine.Length = (cl_len + el) * sizeof(WCHAR);
+                        params->CommandLine.MaximumLength = params->CommandLine.Length + sizeof(WCHAR);
+                        dprintf( 2, "[unreal] child cmdline +%s\n", extra );
+                    }
+                }
+            }
+        }
+    }
 
     /* task #34 single-process CEF: the 64GB VA window above the GPU carveout
      * can hold exactly ONE CEF instance's PartitionAlloc pools + one V8

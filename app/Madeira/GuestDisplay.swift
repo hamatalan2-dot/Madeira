@@ -359,11 +359,67 @@ enum GameEnginePreset {
         if !has("-popupwindow") {
             parts.append("-popupwindow")
         }
-        let size = resolution.lowercased().split(separator: "x").compactMap { Int($0) }
+        var size = resolution.lowercased().split(separator: "x").compactMap { Int($0) }
+        if DevicePlayProfile.memoryConstrained {
+            let light = ResolutionChoices.lightValue.lowercased().split(separator: "x").compactMap { Int($0) }
+            if size.count == 2, light.count == 2, size[0] * size[1] > light[0] * light[1] {
+                size = light
+            }
+            if let i = parts.firstIndex(where: { $0.lowercased() == "-job-worker-count" }), i + 1 < parts.count {
+                parts[i + 1] = "1"
+            } else if !has("-job-worker-count") {
+                parts.append(contentsOf: ["-job-worker-count", "1"])
+            }
+            if !has("-force-gfx-direct") {
+                parts.append("-force-gfx-direct")
+            }
+            if !has("-nolog") {
+                parts.append("-nolog")
+            }
+        }
         if size.count == 2, !has("-screen-width") {
             parts.append(contentsOf: ["-screen-width", String(size[0]), "-screen-height", String(size[1])])
         }
         return parts.joined(separator: " ")
+    }
+
+    /// 6 GB phones: Unity sizes streaming and workers from Windows RAM/CPU,
+    /// and an RTX 3060 report makes it load high mips.
+    static func needsLightMemory(relativePath: String) -> Bool {
+        DevicePlayProfile.memoryConstrained && isUnity(relativePath: relativePath)
+    }
+
+    /// Turn off Unity's graphics jobs in the game's boot.config (persists in _Data).
+    static func applyLightBootConfig(relativePath: String) {
+        guard needsLightMemory(relativePath: relativePath) else { return }
+        let exe = LibraryEntry.hostDrive.appendingPathComponent(relativePath)
+        let folder = exe.deletingLastPathComponent()
+        let stem = exe.deletingPathExtension().lastPathComponent
+        var boot = folder.appendingPathComponent("\(stem)_Data/boot.config")
+        if !FileManager.default.fileExists(atPath: boot.path),
+           let items = try? FileManager.default.contentsOfDirectory(at: folder, includingPropertiesForKeys: nil),
+           let data = items.first(where: { $0.lastPathComponent.hasSuffix("_Data") }) {
+            boot = data.appendingPathComponent("boot.config")
+        }
+        var text = (try? String(contentsOf: boot, encoding: .utf8)) ?? ""
+        let extras = ["gfx-enable-gfx-jobs=0", "gfx-enable-native-gfx-jobs=0"]
+        var changed = false
+        for line in extras {
+            let key = String(line.prefix { $0 != "=" })
+            if text.range(of: key, options: .caseInsensitive) == nil {
+                if !text.isEmpty, !text.hasSuffix("\n") { text += "\n" }
+                text += line + "\n"
+                changed = true
+            }
+        }
+        guard changed else { return }
+        do {
+            try FileManager.default.createDirectory(at: boot.deletingLastPathComponent(), withIntermediateDirectories: true)
+            try text.write(to: boot, atomically: true, encoding: .utf8)
+            LogStore.shared.log("[unity] light boot.config at \(boot.path)")
+        } catch {
+            LogStore.shared.log("[unity] could not write boot.config: \(error.localizedDescription)", level: .error)
+        }
     }
 
     static func isUnreal(relativePath: String) -> Bool {
@@ -405,7 +461,7 @@ enum GameEnginePreset {
 
     /// Game install root: parent of `<Project>/Binaries/Win64`, else the exe folder.
     static func installRoot(from executable: URL) -> URL {
-        var folder = executable.deletingLastPathComponent()
+        let folder = executable.deletingLastPathComponent()
         if folder.lastPathComponent.lowercased() == "win64" {
             let binaries = folder.deletingLastPathComponent()
             if binaries.lastPathComponent.lowercased() == "binaries" {
@@ -415,22 +471,46 @@ enum GameEnginePreset {
         return folder
     }
 
-    /// `Project/Binaries/Win64/*-Win64-Shipping.exe` under the install root.
+    /// Game client `*-Win64-Shipping.exe`, never dedicated server/editor.
     static func shippingExecutable(from executable: URL) -> URL? {
         let name = executable.lastPathComponent.lowercased()
-        if name.hasSuffix("-win64-shipping.exe") { return executable }
+        if isGameShipping(name) { return executable }
         let root = installRoot(from: executable)
-        return shippingExecutables(under: root).first
+        let clients = shippingExecutables(under: root).filter { isGameShipping($0.lastPathComponent) }
+        return clients.max(by: { shippingRank($0) < shippingRank($1) })
     }
 
-    static func shippingExecutables(under root: URL, limit: Int = 8) -> [URL] {
+    static func isGameShipping(_ filename: String) -> Bool {
+        let n = filename.lowercased()
+        guard n.hasSuffix("-win64-shipping.exe") else { return false }
+        return !n.contains("server") && !n.contains("editor") && !n.contains("crash")
+    }
+
+    /// Prefer NoEditor/Client binaries over a leftover WindowsServer tree.
+    static func shippingRank(_ url: URL) -> Int {
+        let n = url.lastPathComponent.lowercased()
+        let p = url.path.lowercased()
+        var score = 0
+        if isGameShipping(n) { score += 50 }
+        if n.contains("server") || p.contains("/windowsserver/") { score -= 100 }
+        if n.contains("editor") { score -= 100 }
+        if p.contains("windowsnoeditor") || p.contains("windowsclient") { score += 40 }
+        if p.contains("/binaries/win64/") { score += 20 }
+        if !p.contains("/builds/") { score += 10 }
+        return score
+    }
+
+    static func shippingExecutables(under root: URL, limit: Int = 16) -> [URL] {
         let fm = FileManager.default
         guard let enumerator = fm.enumerator(
             at: root,
             includingPropertiesForKeys: [.isDirectoryKey],
             options: [.skipsHiddenFiles]
         ) else { return [] }
-        let skip = Set(["engine", "easyanticheat", "saved", "intermediate", "deriveddatacache", "content"])
+        let skip = Set([
+            "engine", "easyanticheat", "saved", "intermediate", "deriveddatacache", "content",
+            "windowsserver", "linuxserver", "windowseditor",
+        ])
         var found: [URL] = []
         while let url = enumerator.nextObject() as? URL {
             let isDir = (try? url.resourceValues(forKeys: [.isDirectoryKey]).isDirectory) ?? false
@@ -438,24 +518,70 @@ enum GameEnginePreset {
                 if skip.contains(url.lastPathComponent.lowercased()) { enumerator.skipDescendants() }
                 continue
             }
-            if url.lastPathComponent.lowercased().hasSuffix("-win64-shipping.exe") {
-                found.append(url)
-                if found.count >= limit { break }
-            }
+            let name = url.lastPathComponent.lowercased()
+            guard name.hasSuffix("-win64-shipping.exe") else { continue }
+            found.append(url)
+            if found.count >= limit { break }
         }
         return found
     }
 
-    static func preferredLaunchRelativePath(from relativePath: String) -> String? {
-        let url = LibraryEntry.hostDrive.appendingPathComponent(relativePath)
-        guard FileManager.default.fileExists(atPath: url.path),
-              let shipping = shippingExecutable(from: url) else { return nil }
+    static func isEpicAuthLauncher(_ filename: String) -> Bool {
+        let n = filename.lowercased()
+        return n == "eosauthlauncher.exe"
+            || n == "eosbootstrapper.exe"
+            || n == "epiconlineservicesbootstrapper.exe"
+    }
+
+    /// EOS bootstrapper next to the game (or under the install root). The shipping
+    /// binary then starts as its child; launching the .exe directly prints
+    /// "Launch game from EOSAuthLauncher.exe".
+    static func epicAuthLauncher(from executable: URL) -> URL? {
+        if isEpicAuthLauncher(executable.lastPathComponent) { return executable }
+        let fm = FileManager.default
+        var dirs = [executable.deletingLastPathComponent(), installRoot(from: executable)]
+        dirs.append(contentsOf: dirs.flatMap { parent in
+            (try? fm.contentsOfDirectory(at: parent, includingPropertiesForKeys: [.isDirectoryKey], options: [.skipsHiddenFiles])) ?? []
+        }.filter { ((try? $0.resourceValues(forKeys: [.isDirectoryKey]).isDirectory) ?? false) })
+        var seen = Set<String>()
+        for dir in dirs {
+            let path = dir.standardizedFileURL.path
+            guard seen.insert(path.lowercased()).inserted else { continue }
+            for name in ["EOSAuthLauncher.exe", "EOSBootstrapper.exe", "EpicOnlineServicesBootstrapper.exe"] {
+                let candidate = dir.appendingPathComponent(name)
+                if fm.fileExists(atPath: candidate.path) { return candidate }
+            }
+        }
+        return nil
+    }
+
+    static func relativePath(of url: URL) -> String? {
         let drive = LibraryEntry.hostDrive.resolvingSymlinksInPath().path
-        let path = shipping.resolvingSymlinksInPath().path
+        let path = url.resolvingSymlinksInPath().path
         guard path.hasPrefix(drive + "/") else { return nil }
-        let relative = String(path.dropFirst(drive.count + 1))
-        if relative.caseInsensitiveCompare(relativePath) == .orderedSame { return nil }
+        return String(path.dropFirst(drive.count + 1))
+    }
+
+    static func preferredLaunchRelativePath(from selected: String) -> String? {
+        let url = LibraryEntry.hostDrive.appendingPathComponent(selected)
+        guard FileManager.default.fileExists(atPath: url.path) else { return nil }
+        if isEpicAuthLauncher(url.lastPathComponent) { return nil }
+        if let epic = epicAuthLauncher(from: url), let relative = Self.relativePath(of: epic),
+           relative.caseInsensitiveCompare(selected) != .orderedSame {
+            return relative
+        }
+        guard let shipping = shippingExecutable(from: url), let relative = Self.relativePath(of: shipping) else { return nil }
+        if relative.caseInsensitiveCompare(selected) == .orderedSame { return nil }
         return relative
+    }
+
+    /// `...\Project\Binaries\Win64` -> `...\Project\Binaries` (Windrose: "Launch game from R5/Binaries").
+    static func binariesWorkingDirectory(windowsFolder: String) -> String? {
+        let parts = windowsFolder.split(separator: "\\").map(String.init)
+        guard parts.count >= 2,
+              parts[parts.count - 1].caseInsensitiveCompare("Win64") == .orderedSame,
+              parts[parts.count - 2].caseInsensitiveCompare("Binaries") == .orderedSame else { return nil }
+        return parts.dropLast().joined(separator: "\\")
     }
 
     static func projectName(forShipping url: URL) -> String? {
@@ -477,7 +603,7 @@ enum GameEnginePreset {
             if !hasProject { parts.insert(project, at: 0) }
         }
         if !has("-dx11", "-dx12", "-dx10", "-dx9", "-d3d11", "-d3d12", "-vulkan", "-opengl") {
-            parts.append("-dx11")
+            parts.append("-dx12")
         }
         if !has("-windowed", "-fullscreen") {
             parts.append("-windowed")

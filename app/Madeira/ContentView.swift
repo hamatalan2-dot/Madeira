@@ -562,6 +562,7 @@ final class MetalBackedView: UIView {
     }
 
     override func touchesBegan(_ touches: Set<UITouch>, with event: UIEvent?) {
+        if madeira_host_browser_active() != 0 { return }
         if HardwareInput.shared.interceptTouches(touches, event, .began) { return }
         guard let touches = tmgFilter(touches, .began) else { return }
         if touchPointerMode { touchModeBegan(touches); return }
@@ -609,6 +610,7 @@ final class MetalBackedView: UIView {
     }
 
     override func touchesMoved(_ touches: Set<UITouch>, with event: UIEvent?) {
+        if madeira_host_browser_active() != 0 { return }
         if HardwareInput.shared.interceptTouches(touches, event, .moved) { return }
         guard let touches = tmgFilter(touches, .moved) else { return }
         if touchPointerMode { touchModeMoved(touches, event); return }
@@ -691,6 +693,7 @@ final class MetalBackedView: UIView {
     }
 
     override func touchesEnded(_ touches: Set<UITouch>, with event: UIEvent?) {
+        if madeira_host_browser_active() != 0 { return }
         if HardwareInput.shared.interceptTouches(touches, event, .ended) { return }
         guard let touches = tmgFilter(touches, .ended) else { return }
         if touchPointerMode { touchModeEnded(touches, event); return }
@@ -735,6 +738,7 @@ final class MetalBackedView: UIView {
     }
 
     override func touchesCancelled(_ touches: Set<UITouch>, with event: UIEvent?) {
+        if madeira_host_browser_active() != 0 { return }
         if HardwareInput.shared.interceptTouches(touches, event, .cancelled) { return }
         guard let touches = tmgFilter(touches, .cancelled) else { return }
         if touchPointerMode { touchModeCancelled(touches); return }
@@ -2467,6 +2471,9 @@ struct ContentView: View {
                mb >= 256, mb <= 1152 {
                 poolSizeMB = mb
                 logStore.log("JIT pool overridden to \(mb)MB via madeira.cfg pool")
+            } else if let profile, GameEnginePreset.needsLightMemory(relativePath: profile.launchRelativePath), poolSizeMB > 640 {
+                poolSizeMB = 640
+                logStore.log("JIT pool 640MB for Unity on this iPhone")
             }
             // ml694: W^X A/B switch. Documents/madeira-wx.txt containing "0"
             // disables page demotion for the SAME binary, so the on/off
@@ -2544,7 +2551,12 @@ struct ContentView: View {
             // A library entry's "Report an NVIDIA GPU" (LibraryEntry.applyEnvironment):
             // DXGI's device id is the GeForce RTX 3060 win32u registers as the
             // display adapter (sysparams_ios.c), so every API names one GPU.
-            if profile?.reportNVIDIA == true {
+            let lightUnity = profile.map { GameEnginePreset.needsLightMemory(relativePath: $0.launchRelativePath) } ?? false
+            if lightUnity {
+                dxmtOptions.append("d3d11.mipClampBC=3")
+                dxmtOptions.append("d3d11.mipClampAuto=1")
+                logStore.log("DXMT config: mip clamp for Unity on this iPhone")
+            } else if profile?.reportNVIDIA == true {
                 dxmtOptions.append("dxgi.customDeviceId=2544")
                 logStore.log("DXMT config: dxgi.customDeviceId=2544 via Report an NVIDIA GPU")
             }
