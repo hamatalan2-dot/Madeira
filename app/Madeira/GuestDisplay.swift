@@ -365,17 +365,61 @@ enum GameEnginePreset {
             if size.count == 2, light.count == 2, size[0] * size[1] > light[0] * light[1] {
                 size = light
             }
-            if !has("-job-worker-count") {
-                parts.append(contentsOf: ["-job-worker-count", "2"])
+            if let i = parts.firstIndex(where: { $0.lowercased() == "-job-worker-count" }), i + 1 < parts.count {
+                parts[i + 1] = "1"
+            } else if !has("-job-worker-count") {
+                parts.append(contentsOf: ["-job-worker-count", "1"])
             }
             if !has("-force-gfx-direct") {
                 parts.append("-force-gfx-direct")
+            }
+            if !has("-nolog") {
+                parts.append("-nolog")
             }
         }
         if size.count == 2, !has("-screen-width") {
             parts.append(contentsOf: ["-screen-width", String(size[0]), "-screen-height", String(size[1])])
         }
         return parts.joined(separator: " ")
+    }
+
+    /// 6 GB phones: Unity sizes streaming and workers from Windows RAM/CPU,
+    /// and an RTX 3060 report makes it load high mips.
+    static func needsLightMemory(relativePath: String) -> Bool {
+        DevicePlayProfile.memoryConstrained && isUnity(relativePath: relativePath)
+    }
+
+    /// Turn off Unity's graphics jobs in the game's boot.config (persists in _Data).
+    static func applyLightBootConfig(relativePath: String) {
+        guard needsLightMemory(relativePath: relativePath) else { return }
+        let exe = LibraryEntry.hostDrive.appendingPathComponent(relativePath)
+        let folder = exe.deletingLastPathComponent()
+        let stem = exe.deletingPathExtension().lastPathComponent
+        var boot = folder.appendingPathComponent("\(stem)_Data/boot.config")
+        if !FileManager.default.fileExists(atPath: boot.path),
+           let items = try? FileManager.default.contentsOfDirectory(at: folder, includingPropertiesForKeys: nil),
+           let data = items.first(where: { $0.lastPathComponent.hasSuffix("_Data") }) {
+            boot = data.appendingPathComponent("boot.config")
+        }
+        var text = (try? String(contentsOf: boot, encoding: .utf8)) ?? ""
+        let extras = ["gfx-enable-gfx-jobs=0", "gfx-enable-native-gfx-jobs=0"]
+        var changed = false
+        for line in extras {
+            let key = String(line.prefix { $0 != "=" })
+            if text.range(of: key, options: .caseInsensitive) == nil {
+                if !text.isEmpty, !text.hasSuffix("\n") { text += "\n" }
+                text += line + "\n"
+                changed = true
+            }
+        }
+        guard changed else { return }
+        do {
+            try FileManager.default.createDirectory(at: boot.deletingLastPathComponent(), withIntermediateDirectories: true)
+            try text.write(to: boot, atomically: true, encoding: .utf8)
+            LogStore.shared.log("[unity] light boot.config at \(boot.path)")
+        } catch {
+            LogStore.shared.log("[unity] could not write boot.config: \(error.localizedDescription)", level: .error)
+        }
     }
 
     static func isUnreal(relativePath: String) -> Bool {

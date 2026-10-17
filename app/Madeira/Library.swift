@@ -616,12 +616,19 @@ struct LibraryEntry: Codable, Identifiable {
         // madeira.cfg setting), as before these choices existed.
         // Unset otherwise, so a previous game's choice (a launch that died before the
         // session-end unset) never beats madeira.cfg for this one.
-        if let cpuCount, (1..<64).contains(cpuCount) { setenv("MADEIRA_CPU_COUNT", String(cpuCount), 1) }
-        else if GameEnginePreset.isUnity(relativePath: launchRelativePath), DevicePlayProfile.memoryConstrained {
-            // Unity otherwise starts ~16 Job.Workers; 6 GB phones jetsam during the black load.
-            setenv("MADEIRA_CPU_COUNT", "4", 1)
-        }
+        let lightUnity = GameEnginePreset.needsLightMemory(relativePath: launchRelativePath)
+        if lightUnity {
+            setenv("MADEIRA_CPU_COUNT", "2", 1)
+        } else if let cpuCount, (1..<64).contains(cpuCount) { setenv("MADEIRA_CPU_COUNT", String(cpuCount), 1) }
         else { unsetenv("MADEIRA_CPU_COUNT") }
+        if lightUnity {
+            setenv("MADEIRA_TOTAL_PHYS_MB", "2048", 1)
+            setenv("MADEIRA_MIP_CLAMP_AUTO", "1", 1)
+            GameEnginePreset.applyLightBootConfig(relativePath: launchRelativePath)
+        } else {
+            unsetenv("MADEIRA_TOTAL_PHYS_MB")
+            unsetenv("MADEIRA_MIP_CLAMP_AUTO")
+        }
         // "dinput": the host pad also as a DirectInput joystick (wine/dlls/dinput/joystick_ios.c,
         // off by default because a game reading both APIs would see two controllers).
         // Exported only for that choice, and it wins over madeira.cfg's MADEIRA_DINPUT_PAD
@@ -643,7 +650,8 @@ struct LibraryEntry: Codable, Identifiable {
         // registry adapter. Set or unset, so one game's choice never leaks into
         // the next session; when set, it wins over madeira.cfg's lines for the
         // same keys (ml1184's per-launch list in WineProcessBridge.m).
-        if reportNVIDIA == true {
+        // An RTX 3060 report makes Unity pick high texture quality on a 6 GB phone.
+        if reportNVIDIA == true, !lightUnity {
             setenv("DXMT_ENABLE_NVEXT", "1", 1)
             setenv("DXMT_WSI_MONITOR_IDENTITY", "1", 1)
             setenv("DXMT_WSI_MODE_TABLE", "1", 1)
@@ -728,12 +736,12 @@ struct LibraryEntry: Codable, Identifiable {
             resolution = ResolutionChoices.lightValue
             metalFXUpscale = 1.5
             fpsMode = 3
-            cpuCount = 4
+            cpuCount = GameEnginePreset.isUnity(relativePath: relativePath) ? 2 : 4
             anisotropyLimit = 2
             frameGeneration = nil
         }
         if GameEnginePreset.isUnity(relativePath: relativePath) {
-            reportNVIDIA = true
+            reportNVIDIA = DevicePlayProfile.memoryConstrained ? false : true
         }
         if GameEnginePreset.isUnreal(relativePath: relativePath) {
             avx = true

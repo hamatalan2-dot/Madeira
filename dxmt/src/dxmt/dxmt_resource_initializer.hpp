@@ -16,7 +16,7 @@ constexpr size_t kResourceInitializerChunks = 2;
  * a title that creates its textures without presenting (Hollow Knight's load)
  * keeps every upload block pinned -- 960MB on A15, where BC decodes to RGBA8 at
  * 4x -- until the first frame commits it all at once and jetsam fires. */
-constexpr size_t kResourceInitializerFlushThreshold = 0x4000000; // 64MB
+constexpr size_t kResourceInitializerFlushThreshold = 0x2000000; // 32MB
 
 static_assert(kResourceInitializerChunks > 1);
 

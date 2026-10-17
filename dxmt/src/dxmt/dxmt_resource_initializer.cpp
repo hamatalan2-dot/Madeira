@@ -651,6 +651,17 @@ ResourceInitializer::flushInternal() {
   reset();
   cached_coherent_seq_id = upload_queue_event_.signaledValue();
   gpu_command_heap_allocator.free_blocks(cached_coherent_seq_id);
+  /* Commit does not free Metal upload blocks until the GPU retires them.
+   * Unity dumps hundreds of textures before a real present, so live
+   * init-upload climbs (576MB in Over the Hill) and jetsam kills the
+   * process on a black load. Wait and drop the ring once it is above
+   * one extra block. */
+  const uint64_t live = g_mem_census.live[MEMOWN_INIT_UPLOAD].load(std::memory_order_relaxed);
+  if (live > (80ull << 20)) {
+    upload_queue_event_.waitUntilSignaledValue(seq_id, -1);
+    cached_coherent_seq_id = seq_id;
+    gpu_command_heap_allocator.free_blocks((uint64_t)-1);
+  }
   return seq_id;
 }
 
